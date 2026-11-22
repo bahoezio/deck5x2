@@ -4,6 +4,7 @@ import os
 import shlex
 import subprocess
 import sys
+import time
 import webbrowser
 
 log = logging.getLogger("deck.actions")
@@ -34,9 +35,24 @@ KEY_NAMES = {
     "pos1": "home", "home": "home", "ende": "end", "end": "end", "bildauf": "page_up", "bildab": "page_down",
     "up": "up", "down": "down", "left": "left", "right": "right",
     "druck": "print_screen", "print": "print_screen",
+    "mediaplay": "media_play_pause", "mute": "media_volume_mute",
 }
 for n in range(1, 25):
     KEY_NAMES[f"f{n}"] = f"f{n}"
+
+
+# System-Aktionen: (Anzeigename, Art, Wert)
+SYSTEM = {
+    "lock": ("PC sperren", "cmd", ["rundll32.exe", "user32.dll,LockWorkStation"]),
+    "taskmgr": ("Task-Manager", "hotkey", "Strg+Umschalt+Esc"),
+    "desktop": ("Desktop anzeigen", "hotkey", "Win+D"),
+    "explorer": ("Explorer", "hotkey", "Win+E"),
+    "screenshot": ("Bildschirmausschnitt", "hotkey", "Win+Umschalt+S"),
+    "settings": ("Einstellungen", "hotkey", "Win+I"),
+    "clipboard": ("Zwischenablage-Verlauf", "hotkey", "Win+V"),
+    "emoji": ("Emoji-Auswahl", "hotkey", "Win+."),
+    "calc": ("Rechner", "cmd", ["calc.exe"]),
+}
 
 
 def parse_hotkey(text: str):
@@ -60,8 +76,9 @@ def parse_hotkey(text: str):
 
 def run_action(action: dict) -> tuple[bool, str]:
     """Fuehrt eine Aktion aus. Rueckgabe: (erfolgreich, Meldung fuer die Oberflaeche)."""
-    t = (action or {}).get("type", "none")
-    v = str((action or {}).get("value", "")).strip()
+    action = action or {}
+    t = action.get("type", "none")
+    v = str(action.get("value", "")).strip() if not isinstance(action.get("value"), list) else ""
     try:
         if t == "none":
             return True, ""
@@ -86,13 +103,32 @@ def run_action(action: dict) -> tuple[bool, str]:
             return True, ""
         if t == "hotkey":
             keys = parse_hotkey(v)
-            if not keys:
+            if not keys or _kb is None:
                 return False, f"Unbekanntes Tastenkuerzel: {v}"
             for k in keys:
                 _kb.press(k)
             for k in reversed(keys):
                 _kb.release(k)
             return True, ""
+        if t == "system":
+            if v not in SYSTEM:
+                return False, f"Unbekannte Systemaktion: {v}"
+            name, kind, val = SYSTEM[v]
+            if kind == "cmd":
+                subprocess.Popen(val, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+                return True, name
+            return run_action({"type": "hotkey", "value": val})
+        if t == "multi":
+            steps = action.get("value") if isinstance(action.get("value"), list) else []
+            for st in steps:
+                if st.get("type") == "delay":
+                    time.sleep(max(0, min(60000, int(float(st.get("value") or 0)))) / 1000)
+                else:
+                    ok, msg = run_action(st)
+                    if not ok:
+                        return False, msg
+                    time.sleep(0.03)
+            return True, f"Multi-Aktion ({len(steps)} Schritte)"
         if t == "text":
             if _kb is None:
                 return False, "Tastatur nicht verfuegbar"

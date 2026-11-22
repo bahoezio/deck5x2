@@ -2,14 +2,18 @@
 
 Ein selbst gebautes Makro-Deck: 10 Tasten aus klarem UV-Harz über einem 4,0″-Touchdisplay, darunter eine breite Leiste für Uhrzeit, Wetter oder GIFs. Gesteuert von einem ESP32-S3, eingestellt über eine Windows-App.
 
-> **Status:** Prototyp. Firmware und App funktionieren, das Gehäuse ist Entwurf v0.2.
+> **Status:** Prototyp. Firmware 0.3 und App 0.3, das Gehäuse ist Entwurf v0.2.
 
 ## Was es kann
 
-- **10 frei belegbare Tasten:** Programme starten, Webseiten öffnen, Tastenkürzel, Medien-Steuerung, Text tippen
-- **Leiste** mit Uhrzeit und Datum (kommt von der App oder optional über WLAN)
-- **Windows-App** zum Einstellen: Beschriftung, Farbe und Aktion je Taste, Touch-Kalibrierung, Autostart
-- **Ohne App** sendet das Deck F13–F22 wie eine normale Tastatur
+- **10 Tasten mit Icons:** eigene Bilder und GIFs, Symbole, Emoji oder automatisch das Programm-Icon bzw. Logo der Webseite
+- **Aktionen:** Programme, Webseiten, Tastenkürzel, Medien, Text tippen, System (PC sperren, Task-Manager …), Multi-Aktionen
+- **Seiten und Ordner**, Wischen auf der Leiste wechselt die Seite
+- **Profile je Programm:** ist z. B. Spotify im Vordergrund, springt das Deck auf deine Spotify-Seite
+- **Umschalt-Tasten** mit zwei Zuständen, **lang drücken** als zweite Aktion, **Live-Tasten** (Uhr, CPU, Zähler, Stoppuhr)
+- **Leiste** in bis zu 4 Bereiche geteilt: Uhr, Wetter, „läuft gerade“ mit Cover, CPU/RAM, Text oder GIF
+- **Touch:** Kalibrierung mit gesicherten Werten, Touch-Test, Bildschirmschoner
+- **Ohne App** zeigt das Deck Beschriftung und Uhr und sendet F13–F22 wie eine normale Tastatur
 
 ## Teile
 
@@ -52,7 +56,7 @@ Hilfsprogramme zum Testen liegen in `firmware/tools/`.
 
 ## App
 
-Die fertige **Deck5x2.exe** gibt es unter [Releases](../../releases). Starten, fertig: Die App findet das Deck automatisch und läuft danach im Infobereich neben der Uhr weiter.
+Die fertige App gibt es unter [Releases](../../releases): ZIP entpacken und **Deck5x2.exe** im Ordner starten. Die App findet das Deck automatisch und läuft danach im Infobereich neben der Uhr weiter.
 
 Selbst starten (für Entwickler):
 
@@ -61,6 +65,8 @@ cd app
 pip install -r requirements.txt
 python deck_app.py
 ```
+
+Ohne Deck testen: `python tools/ui_dev_server.py` startet die Oberfläche im Browser mit einem simulierten Deck.
 
 ## Gehäuse
 

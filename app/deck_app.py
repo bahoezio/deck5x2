@@ -15,11 +15,13 @@ from logging.handlers import RotatingFileHandler
 
 import webview
 
-from deck import actions, config
-from deck.serial_link import DeckLink
+import json
+
+from deck import actions, config, icons, render, widgets
+from deck.engine import Engine, window_apps
 
 APP_NAME = "Deck 5x2"
-APP_VERSION = "0.2.0"
+APP_VERSION = "0.3.0"
 
 # ---------------------------------------------------------------- Logging
 log_file = config.config_dir() / "deck.log"
@@ -50,45 +52,15 @@ def set_autostart(enabled: bool):
                 pass
 
 
-# ---------------------------------------------------------------- App-Zustand
-class DeckApp:
-    def __init__(self):
-        self.cfg = config.load()
-        self.window = None
-        self.quitting = False
-        self.last_key = {"i": -1, "at": 0.0}
-        self.last_message = ""
-        self.cal_values = None
-        self.link = DeckLink(on_key=self.on_key, on_status=self.on_status, on_message=self.on_message)
-        self.link.time_sync = self.cfg["time_sync"]
-        self.link.set_on_connect([config.device_layout(self.cfg)])
-
-    # ---- Ereignisse vom Deck
-    def on_key(self, i: int, down: bool):
-        if not (0 <= i < config.NUM_KEYS):
-            return
-        if down:
-            self.last_key = {"i": i, "at": time.time()}
-            ok, msg = actions.run_action(self.cfg["keys"][i]["action"])
-            if msg:
-                self.last_message = msg if ok else "⚠ " + msg
-            log.info("Taste %d: %s", i + 1, msg or "ok")
-
-    def on_status(self, status):
-        log.info("Status: %s", status)
-
-    def on_message(self, msg):
-        if msg.get("t") == "cal":
-            self.cal_values = msg.get("v")
-            self.last_message = "Kalibrierung gespeichert"
-
-
+# ---------------------------------------------------------------- Schnittstelle fuer die Oberflaeche
 class Api:
     """Diese Funktionen ruft die Oberflaeche (ui/index.html) per JavaScript auf."""
 
-    def __init__(self, app: DeckApp):
+    def __init__(self, app: Engine):
         self._app = app
+        self._window = None
 
+    # ---- Zustand
     def get_state(self):
         a = self._app
         return {
@@ -98,15 +70,24 @@ class Api:
             "message": a.last_message,
             "calValues": a.cal_values or a.link.info.get("cal_values"),
             "version": APP_VERSION,
+            "page": a.page_id,
+            "iconEpoch": a.icon_epoch,
         }
 
+    def poll(self):
+        a = self._app
+        t, a.touches = a.touches, []
+        return {"status": a.link.status(), "lastKey": a.last_key, "message": a.last_message, "page": a.page_id,
+                "calValues": a.cal_values, "iconEpoch": a.icon_epoch, "touches": t}
+
+    def get_glyphs(self):
+        return {"glyphs": icons.GLYPHS, "font": render.has_font("icons"), "system": [[k, v[0]] for k, v in actions.SYSTEM.items()]}
+
+    # ---- Speichern / Vorschau
     def save(self, cfg):
         a = self._app
         old_autostart = a.cfg.get("autostart")
-        a.cfg = config.save(cfg)
-        a.link.time_sync = a.cfg["time_sync"]
-        a.link.set_on_connect([config.device_layout(a.cfg)])
-        sent = a.link.send(config.device_layout(a.cfg))
+        sent = a.apply_config(cfg)
         if a.cfg["autostart"] != old_autostart:
             try:
                 set_autostart(a.cfg["autostart"])
@@ -115,29 +96,123 @@ class Api:
         a.last_message = "Gespeichert und ans Deck geschickt" if sent else "Gespeichert (Deck nicht verbunden)"
         return {"ok": True, "sent": sent, "config": a.cfg}
 
-    def test_key(self, i):
-        ok, msg = actions.run_action(self._app.cfg["keys"][int(i)]["action"])
+    def preview_key(self, key, toggled=False):
+        try:
+            return self._app.preview_key(key, toggled)
+        except Exception:
+            log.exception("Vorschau fehlgeschlagen")
+            return ""
+
+    def preview_bar(self, zones):
+        try:
+            return self._app.preview_bar(zones)
+        except Exception:
+            log.exception("Vorschau Leiste fehlgeschlagen")
+            return []
+
+    def goto_page(self, pid):
+        self._app.goto(pid)
+        return {"ok": True}
+
+    def test_key(self, pid, i):
+        page = config.page_by_id(self._app.cfg, pid)
+        _, action = self._app.key_look(page, int(i))
+        if action["type"] == "page":
+            self._app.page_action(action["value"])
+            return {"ok": True, "message": "Seite gewechselt"}
+        ok, msg = actions.run_action(action)
         return {"ok": ok, "message": msg}
 
+    # ---- Dateien
+    def _dialog(self, types, save=False, name=""):
+        w = self._window
+        if not w:
+            return ""
+        if save:
+            res = w.create_file_dialog(webview.SAVE_DIALOG, save_filename=name, file_types=types)
+            return res if isinstance(res, str) else (res[0] if res else "")
+        res = w.create_file_dialog(webview.OPEN_DIALOG, allow_multiple=False, file_types=types)
+        return res[0] if res else ""
+
+    def choose_program(self):
+        return self._dialog(("Programme (*.exe;*.lnk;*.bat;*.cmd)", "Alle Dateien (*.*)"))
+
+    def choose_image(self, gif_only=False):
+        types = ("GIF (*.gif)",) if gif_only else ("Bilder (*.png;*.jpg;*.jpeg;*.gif;*.ico;*.bmp;*.webp)", "Alle Dateien (*.*)")
+        p = self._dialog(types)
+        if not p:
+            return ""
+        try:
+            return icons.import_image(p)
+        except OSError as e:
+            self._app.last_message = f"⚠ Bild nicht lesbar: {e}"
+            return ""
+
+    def export_profile(self):
+        p = self._dialog(("Deck-Profil (*.json)",), save=True, name="Deck5x2-Profil.json")
+        if not p:
+            return {"ok": False}
+        with open(p, "w", encoding="utf-8") as f:
+            json.dump(self._app.cfg, f, ensure_ascii=False, indent=2)
+        return {"ok": True, "path": p}
+
+    def import_profile(self):
+        p = self._dialog(("Deck-Profil (*.json)", "Alle Dateien (*.*)"))
+        if not p:
+            return {"ok": False}
+        try:
+            with open(p, encoding="utf-8") as f:
+                cfg = config.normalize(json.load(f))
+        except (OSError, ValueError) as e:
+            return {"ok": False, "message": str(e)}
+        return {"ok": True, "config": cfg}
+
+    def running_apps(self):
+        return window_apps()
+
+    def geocode(self, name):
+        try:
+            return {"ok": True, "results": widgets.geocode(name)}
+        except Exception as e:
+            return {"ok": False, "message": str(e)}
+
+    # ---- Touch
     def calibrate(self):
         sent = self._app.link.send({"t": "calibrate"})
-        self._app.last_message = ("Tippe auf dem Deck die 4 Pfeilspitzen an" if sent
-                                  else "Deck nicht verbunden")
+        self._app.last_message = "Tippe auf dem Deck die 4 Pfeilspitzen an" if sent else "Deck nicht verbunden"
         return {"ok": sent}
 
     def read_calibration(self):
         return {"ok": self._app.link.send({"t": "getcal"})}
 
+    def restore_calibration(self):
+        v = self._app.cfg.get("cal_backup")
+        if not v:
+            return {"ok": False, "message": "Keine gesicherten Werte"}
+        return {"ok": self._app.link.send({"t": "setcal", "v": v})}
+
+    def backup_calibration(self):
+        v = self._app.cal_values
+        if not v:
+            return {"ok": False, "message": "Erst Werte lesen"}
+        self._app.cfg["cal_backup"] = [int(x) for x in v]
+        self._app.cfg = config.save(self._app.cfg)
+        return {"ok": True, "config": self._app.cfg}
+
+    def touch_test(self, on):
+        a = self._app
+        a.touch_test = bool(on)
+        a.touches = []
+        ok = a.link.send({"t": "touchtest", "on": bool(on)})
+        if not on:
+            a.poke()
+        return {"ok": ok}
+
+    def deck_sleep(self):
+        return {"ok": self._app.link.send({"t": "sleep", "on": True})}
+
     def sync_time(self):
         return {"ok": self._app.link.send_time()}
-
-    def choose_program(self):
-        w = self._app.window
-        if not w:
-            return ""
-        res = w.create_file_dialog(webview.OPEN_DIALOG, allow_multiple=False,
-                                   file_types=("Programme (*.exe;*.lnk;*.bat)", "Alle Dateien (*.*)"))
-        return res[0] if res else ""
 
     def open_log(self):
         try:
@@ -146,12 +221,12 @@ class Api:
             pass
 
     def hide(self):
-        if self._app.window:
-            self._app.window.hide()
+        if self._window:
+            self._window.hide()
 
 
 # ---------------------------------------------------------------- Infobereich-Symbol
-def make_tray(app: DeckApp):
+def make_tray(app: Engine):
     try:
         import pystray
         from PIL import Image, ImageDraw
@@ -202,14 +277,17 @@ def main():
         log.info("Deck-App laeuft bereits")
         return
     hidden = "--hidden" in sys.argv
-    app = DeckApp()
-    app.link.start()
+    app = Engine()
+    app.window = None
+    app.quitting = False
+    app.start()
     tray = make_tray(app)
 
     api = Api(app)
     html = config.resource_path("ui/index.html")
-    app.window = webview.create_window(APP_NAME, url=str(html), js_api=api, width=1180, height=760,
-                                       min_size=(900, 620), background_color="#0E1116", hidden=hidden)
+    app.window = webview.create_window(APP_NAME, url=str(html), js_api=api, width=1280, height=820,
+                                       min_size=(980, 640), background_color="#0E1116", hidden=hidden)
+    api._window = app.window
 
     def on_closing():
         if app.quitting or tray is None:

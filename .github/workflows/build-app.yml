@@ -1,11 +1,11 @@
 # Baut die Windows-App (Deck5x2.exe) automatisch auf GitHub.
-# - Bei jedem Push: die .exe liegt unter "Actions" -> letzter Lauf -> "Artifacts".
+# - Bei jedem Push: die App liegt unter "Actions" -> letzter Lauf -> "Artifacts" (ZIP entpacken, Deck5x2.exe starten).
 # - Bei einem Tag wie v0.2.0: zusaetzlich ein Release mit der .exe zum Herunterladen.
 name: Windows-App bauen
 
 on:
   push:
-    branches: [main]
+    branches: [main, dev]
     tags: ["v*"]
   workflow_dispatch:
 
@@ -30,8 +30,10 @@ jobs:
       - name: .exe bauen
         working-directory: app
         run: >
-          pyinstaller --noconfirm --onefile --windowed
+          pyinstaller --noconfirm --onedir --windowed
           --name Deck5x2
+          --collect-all winrt
+          --hidden-import pystray._win32
           --icon assets/deck.ico
           --add-data "ui;ui"
           --add-data "assets;assets"
@@ -40,11 +42,15 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: Deck5x2-windows
-          path: app/dist/Deck5x2.exe
+          path: app/dist/Deck5x2/
+
+      - name: ZIP fuer das Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: Compress-Archive -Path app/dist/Deck5x2 -DestinationPath app/dist/Deck5x2-windows.zip
 
       - name: Release anlegen
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          files: app/dist/Deck5x2.exe
+          files: app/dist/Deck5x2-windows.zip
           generate_release_notes: true

@@ -5,14 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Deck 5x2</title>
 <style>
-/* Layout: oben das Deck als Vorschau (anklickbar), rechts der Editor fuer die gewaehlte Taste, unten Geraet & Einstellungen */
+/* Links: Seiten + Deck-Vorschau (anklickbar) + Einstellungen. Rechts: Editor fuer Taste, Leistenbereich oder Seite. */
 :root{
-  --bg:#0E1116; --panel:#161A21; --panel2:#1C212A; --line:#262C36; --fg:#E7EAEE; --muted:#8A94A3;
+  --bg:#0E1116; --panel:#161A21; --panel2:#1C212A; --panel3:#222833; --line:#262C36; --fg:#E7EAEE; --muted:#8A94A3;
   --accent:#3CC4D3; --accent-ink:#06191C; --ok:#4ADE80; --warn:#F5B94A; --bad:#F87171;
-  --device:#20252D; --device-edge:#2C323C; --glass:#07090C; --bar:#111827;
+  --device:#20252D; --device-edge:#2C323C; --glass:#07090C;
   --f-ui:"Segoe UI Variable Text","Segoe UI",system-ui,-apple-system,sans-serif;
   --f-disp:"Segoe UI Variable Display","Segoe UI",system-ui,sans-serif;
   --f-mono:"Cascadia Mono",Consolas,ui-monospace,monospace;
+  --f-icon:"Segoe Fluent Icons","Segoe MDL2 Assets";
   color-scheme:dark;
 }
 *{box-sizing:border-box}
@@ -21,8 +22,9 @@ body{background:var(--bg);color:var(--fg);font:14px/1.45 var(--f-ui);display:fle
 button,input,select,textarea{font:inherit;color:inherit}
 button{cursor:pointer}
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.ico{font-family:var(--f-icon);font-style:normal;line-height:1}
 
-header{display:flex;align-items:center;gap:14px;padding:14px 22px;border-bottom:1px solid var(--line)}
+header{display:flex;align-items:center;gap:14px;padding:12px 22px;border-bottom:1px solid var(--line)}
 .logo{display:grid;grid-template-columns:repeat(3,7px);gap:2px}
 .logo i{width:7px;height:7px;border-radius:2px;background:var(--accent)}
 .logo i:nth-child(n+4){background:#5B6574}
@@ -31,53 +33,77 @@ header .ver{color:var(--muted);font-size:12px}
 .status{margin-left:auto;display:flex;align-items:center;gap:8px;background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:5px 12px 5px 10px;font-size:13px}
 .dot{width:8px;height:8px;border-radius:50%;background:var(--bad)}
 .status.on .dot{background:var(--ok);box-shadow:0 0 0 3px rgba(74,222,128,.15)}
+.status.old .dot{background:var(--warn)}
 
-main{flex:1;display:grid;grid-template-columns:minmax(0,1fr) 380px;min-height:0}
-.stage{padding:26px 28px;overflow:auto;display:flex;flex-direction:column;gap:22px;min-width:0}
-.side{border-left:1px solid var(--line);background:var(--panel);overflow:auto;padding:22px;display:flex;flex-direction:column;gap:18px}
+main{flex:1;display:grid;grid-template-columns:minmax(0,1fr) 410px;min-height:0}
+.stage{padding:18px 28px 28px;overflow:auto;display:flex;flex-direction:column;gap:18px;min-width:0}
+.side{border-left:1px solid var(--line);background:var(--panel);overflow:auto;padding:20px 22px 28px;display:flex;flex-direction:column;gap:16px}
+
+/* Seiten */
+.pages{display:flex;align-items:center;gap:6px;flex-wrap:wrap;align-self:center;max-width:680px;width:100%}
+.tab{background:transparent;border:1px solid var(--line);border-radius:999px;padding:6px 14px;color:var(--muted);font-size:13px;display:flex;align-items:center;gap:7px}
+.tab:hover{color:var(--fg);border-color:#3A4250}
+.tab.on{background:var(--panel2);color:var(--fg);border-color:var(--accent)}
+.tab .live{width:6px;height:6px;border-radius:50%;background:var(--ok)}
+.tab .ico{font-size:11px;opacity:.7}
+.tab.add{border-style:dashed}
+.pages .spacer{flex:1}
 
 /* Deck-Vorschau, gleiche Proportionen wie das echte Display (480 x 320) */
-.device{align-self:center;background:var(--device);border:1px solid var(--device-edge);border-radius:22px;padding:18px;width:min(640px,100%);box-shadow:0 30px 60px -30px rgba(0,0,0,.8)}
-.screen{position:relative;aspect-ratio:3/2;background:var(--glass);border-radius:6px;overflow:hidden;container-type:inline-size}
-.key{position:absolute;width:15.83%;height:23.75%;border-radius:2.5cqw;border:0;display:grid;place-items:center;
-  color:#fff;font:700 2.7cqw var(--f-ui);text-align:center;padding:0 .8cqw;line-height:1.15;transition:transform .08s,box-shadow .12s;overflow:hidden;word-break:normal;overflow-wrap:normal}
+.device{align-self:center;background:var(--device);border:1px solid var(--device-edge);border-radius:22px;padding:18px;width:min(680px,100%);box-shadow:0 30px 60px -30px rgba(0,0,0,.8)}
+.screen{position:relative;aspect-ratio:3/2;background:var(--glass);border-radius:6px;overflow:hidden;user-select:none}
+.key{position:absolute;width:15.833%;height:23.75%;padding:0;border:0;background:#1E293B;border-radius:15.8%;overflow:hidden;transition:transform .08s}
+.key img,.zone img{display:block;width:100%;height:100%;image-rendering:auto;pointer-events:none}
 .key:hover{transform:translateY(-1px)}
-.key.sel{box-shadow:0 0 0 .5cqw var(--glass),0 0 0 1cqw var(--accent)}
-.key.hit{background:#fff!important;color:#000}
-.bar{position:absolute;left:1.875%;top:62.8%;width:96.25%;height:34.4%;background:var(--bar);border-radius:2cqw;display:flex;align-items:center;justify-content:space-between;padding:0 5cqw}
-.bar .clock{font:700 8cqw var(--f-disp);letter-spacing:.01em;font-variant-numeric:tabular-nums}
-.bar .date{text-align:right;color:#94A3B8;font-size:3.2cqw;line-height:1.35}
-.hint{align-self:center;color:var(--muted);font-size:13px;margin:-8px 0 0}
+.key.sel,.zone.sel{box-shadow:0 0 0 2px var(--glass),0 0 0 4px var(--accent)}
+.key.hit::after{content:"";position:absolute;inset:0;border:3px solid #fff;border-radius:inherit}
+.key.drag{opacity:.4}
+.key.over{box-shadow:0 0 0 2px var(--glass),0 0 0 4px var(--warn)}
+.zone{position:absolute;top:62.8125%;height:34.375%;padding:0;border:0;background:#111827;border-radius:2.1%/9%;overflow:hidden}
+.zone img{object-fit:fill}
+.divider{position:absolute;top:62.8125%;height:34.375%;width:14px;margin-left:-7px;cursor:ew-resize;z-index:3;display:grid;place-items:center;touch-action:none}
+.divider::before{content:"";width:4px;height:36%;border-radius:4px;background:rgba(255,255,255,.35);transition:.12s}
+.divider:hover::before,.divider.active::before{background:var(--accent);height:60%}
+.hint{align-self:center;color:var(--muted);font-size:13px;margin:-6px 0 0;text-align:center}
 
-h2{font:600 12px var(--f-ui);text-transform:uppercase;letter-spacing:.09em;color:var(--muted);margin:0 0 10px}
-.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px}
-.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:16px}
+h2{font:600 12px var(--f-ui);text-transform:uppercase;letter-spacing:.09em;color:var(--muted);margin:0 0 8px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 18px}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px}
 .row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 0}
 .row+.row{border-top:1px solid var(--line)}
 .row small{display:block;color:var(--muted);font-size:12px}
+.row .btns{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
 
+.sec{display:flex;flex-direction:column;gap:8px}
+.sec>.lab{font-size:13px;color:var(--muted);display:flex;align-items:center;justify-content:space-between;gap:8px}
 label.f{display:flex;flex-direction:column;gap:6px;font-size:13px;color:var(--muted)}
-input[type=text],select,textarea{background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:9px 11px;color:var(--fg);width:100%;min-width:0}
-textarea{resize:vertical;min-height:70px}
-input[type=text]:focus,select:focus,textarea:focus{border-color:var(--accent);outline:none}
-.inline{display:flex;gap:8px}
-.inline>input{flex:1}
+input[type=text],input[type=number],select,textarea{background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:8px 11px;color:var(--fg);width:100%;min-width:0}
+textarea{resize:vertical;min-height:64px}
+input:focus,select:focus,textarea:focus{border-color:var(--accent);outline:none}
+.inline{display:flex;gap:8px;align-items:center}
+.inline>input,.inline>select{flex:1}
+hr{border:0;border-top:1px solid var(--line);margin:4px 0;width:100%}
 
-.swatches{display:grid;grid-template-columns:repeat(8,1fr);gap:6px}
-.sw{aspect-ratio:1;border-radius:7px;border:2px solid transparent}
+.swatches{display:grid;grid-template-columns:repeat(9,1fr);gap:5px}
+.sw{aspect-ratio:1;border-radius:7px;border:2px solid transparent;padding:0}
 .sw.on{border-color:var(--fg)}
 .sw.custom{position:relative;background:conic-gradient(#f43f5e,#f59e0b,#22c55e,#06b6d4,#6366f1,#d946ef,#f43f5e);overflow:hidden}
-.sw.custom input{position:absolute;inset:0;opacity:0;cursor:pointer}
+.sw.custom input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
 
 .seg{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
-.seg button{background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:8px 6px;font-size:13px;color:var(--fg)}
+.seg.c2{grid-template-columns:repeat(2,1fr)}.seg.c4{grid-template-columns:repeat(4,1fr)}.seg.c5{grid-template-columns:repeat(5,1fr)}
+.seg button{background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:7px 4px;font-size:12.5px;color:var(--fg)}
 .seg button.on{background:rgba(60,196,211,.14);border-color:var(--accent);color:var(--accent)}
 
-.btn{background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:9px 14px;color:var(--fg);white-space:nowrap}
+.btn{background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:8px 13px;color:var(--fg);white-space:nowrap;font-size:13px}
 .btn:hover{border-color:#3A4250}
 .btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:600}
 .btn.rec{border-color:var(--warn);color:var(--warn)}
+.btn.danger{color:var(--bad)}
+.btn.small{padding:5px 9px;font-size:12px}
 .btn:disabled{opacity:.45;cursor:default}
+.iconbtn{background:transparent;border:0;color:var(--muted);padding:4px 6px;border-radius:6px}
+.iconbtn:hover{color:var(--fg);background:var(--panel2)}
 
 .toggle{position:relative;width:40px;height:22px;flex:none}
 .toggle input{position:absolute;inset:0;opacity:0;margin:0;cursor:pointer}
@@ -86,17 +112,50 @@ input[type=text]:focus,select:focus,textarea:focus{border-color:var(--accent);ou
 .toggle input:checked+span{background:var(--accent)}
 .toggle input:checked+span::after{transform:translateX(18px)}
 
-.keytitle{display:flex;align-items:baseline;gap:10px}
-.keytitle b{font:600 20px var(--f-disp)}
-.keytitle span{color:var(--muted);font-size:13px}
+.ttl{display:flex;align-items:center;gap:10px}
+.ttl b{font:600 20px var(--f-disp)}
+.ttl span{color:var(--muted);font-size:13px}
+.ttl .tools{margin-left:auto;display:flex;gap:2px}
 .help{color:var(--muted);font-size:12px;margin:0}
 .mono{font-family:var(--f-mono);font-size:12px;color:var(--muted);word-break:break-all}
 
-footer{display:flex;align-items:center;gap:12px;padding:12px 22px;border-top:1px solid var(--line);background:var(--panel)}
+.glyphs{display:grid;grid-template-columns:repeat(9,1fr);gap:4px;max-height:176px;overflow:auto;padding:2px}
+.glyphs button{aspect-ratio:1;background:var(--panel2);border:1px solid var(--line);border-radius:7px;font:18px var(--f-icon);display:grid;place-items:center;padding:0}
+.glyphs button.on{border-color:var(--accent);color:var(--accent)}
+.emojis{display:flex;flex-wrap:wrap;gap:4px}
+.emojis button{background:var(--panel2);border:1px solid var(--line);border-radius:7px;font-size:18px;width:34px;height:34px;padding:0}
+
+details{border:1px solid var(--line);border-radius:12px;background:var(--panel2)}
+details>summary{list-style:none;cursor:pointer;padding:10px 12px;font-size:13px;display:flex;align-items:center;gap:8px}
+details>summary::-webkit-details-marker{display:none}
+details>summary::before{content:"\E76C";font-family:var(--f-icon);font-size:10px;color:var(--muted);transition:transform .15s}
+details[open]>summary::before{transform:rotate(90deg)}
+details>summary .badge{margin-left:auto;font-size:11px;color:var(--accent);background:rgba(60,196,211,.12);border-radius:99px;padding:1px 8px}
+details>.in{padding:2px 12px 14px;display:flex;flex-direction:column;gap:10px}
+details input[type=text],details select,details textarea{background:var(--panel)}
+
+.steps{display:flex;flex-direction:column;gap:6px}
+.step{display:grid;grid-template-columns:22px 118px 1fr auto;gap:6px;align-items:center}
+.step .n{color:var(--muted);font-size:12px;text-align:center}
+.step select,.step input{padding:6px 8px;font-size:12.5px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{display:flex;align-items:center;gap:6px;background:var(--panel2);border:1px solid var(--line);border-radius:99px;padding:3px 6px 3px 11px;font-size:12.5px}
+.chip button{background:none;border:0;color:var(--muted);padding:0 3px;font-size:14px;line-height:1}
+.results{display:flex;flex-direction:column;gap:4px}
+.results button{text-align:left;background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:12.5px}
+
+footer{display:flex;align-items:center;gap:12px;padding:10px 22px;border-top:1px solid var(--line);background:var(--panel)}
 #msg{color:var(--muted);font-size:13px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 #msg.warn{color:var(--warn)}
-.dirty{color:var(--warn);font-size:13px}
-@media (max-width:860px){main{grid-template-columns:1fr}.side{border-left:0;border-top:1px solid var(--line)}body{overflow:auto}}
+#saved{font-size:12.5px;color:var(--muted)}
+#saved.pending{color:var(--warn)}
+
+/* Touch-Test */
+.modal{position:fixed;inset:0;background:rgba(5,7,10,.78);display:grid;place-items:center;z-index:20}
+.modal[hidden]{display:none}
+.modal .box{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:20px;width:min(760px,94vw);display:flex;flex-direction:column;gap:14px}
+.modal canvas{width:100%;aspect-ratio:3/2;background:#000;border-radius:8px}
+@media (max-width:900px){main{grid-template-columns:1fr}.side{border-left:0;border-top:1px solid var(--line)}body{overflow:auto}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
@@ -109,215 +168,533 @@ footer{display:flex;align-items:center;gap:12px;padding:12px 22px;border-top:1px
 
 <main>
   <section class="stage">
+    <nav class="pages" id="pages" aria-label="Seiten"></nav>
     <div class="device" aria-label="Vorschau des Decks">
-      <div class="screen" id="screen">
-        <div class="bar"><div class="clock" id="clock">--:--</div><div class="date" id="date"></div></div>
-      </div>
+      <div class="screen" id="screen"></div>
     </div>
-    <p class="hint">Klick auf eine Taste, um sie einzustellen. Drückst du am Deck, leuchtet sie hier mit auf.</p>
+    <p class="hint">Taste oder Leiste anklicken zum Einstellen · Tasten per Ziehen tauschen · Leiste an den Trennstrichen breiter/schmaler ziehen</p>
 
     <div class="grid2">
       <div class="card">
         <h2>Allgemein</h2>
-        <div class="row"><div>Uhrzeit ans Deck senden<small>Die Leiste zeigt die Uhrzeit dieses PCs</small></div>
+        <div class="row"><div>Uhrzeit ans Deck senden<small>Auch für die Uhr ohne laufende App</small></div>
           <label class="toggle"><input type="checkbox" id="timeSync"><span></span></label></div>
         <div class="row"><div>Mit Windows starten<small>Läuft dann unsichtbar im Infobereich</small></div>
           <label class="toggle"><input type="checkbox" id="autostart"><span></span></label></div>
+        <div class="row"><div>Profile automatisch wechseln<small>Seite passend zum Programm im Vordergrund</small></div>
+          <label class="toggle"><input type="checkbox" id="autoProfiles"><span></span></label></div>
+        <div class="row"><div>Auf der Leiste wischen<small>Wischen nach links/rechts wechselt die Seite</small></div>
+          <label class="toggle"><input type="checkbox" id="swipePages"><span></span></label></div>
+      </div>
+      <div class="card">
+        <h2>Display</h2>
+        <div class="row"><div>Bildschirmschoner<small>Display wird schwarz, Antippen weckt es</small></div>
+          <select id="sleepMin" style="width:auto"><option value="0">Aus</option><option value="2">nach 2 Min.</option><option value="5">nach 5 Min.</option><option value="10">nach 10 Min.</option><option value="30">nach 30 Min.</option><option value="60">nach 1 Std.</option></select></div>
+        <div class="row" id="brightRow"><div style="flex:1">Helligkeit<small id="brightHint">Braucht den Umbau aus der Anleitung (LED an einen Pin)</small></div>
+          <input type="range" id="bright" min="5" max="100" step="5" style="width:140px"></div>
+        <div class="row"><div>Deck jetzt schlafen legen</div><button class="btn" id="sleepNow">Schlafen</button></div>
       </div>
       <div class="card">
         <h2>Touch</h2>
-        <div class="row"><div>Touch kalibrieren<small>Auf dem Deck erscheinen 4 Pfeile zum Antippen</small></div>
+        <div class="row"><div>Neu kalibrieren<small>Auf dem Deck erscheinen 4 Pfeile zum Antippen</small></div>
           <button class="btn" id="calBtn">Starten</button></div>
+        <div class="row"><div>Touch-Test<small>Zeichne auf dem Deck und sieh, wo es ankommt</small></div>
+          <button class="btn" id="ttBtn">Testen</button></div>
         <div class="row"><div style="min-width:0">Aktuelle Werte<small class="mono" id="calVals">noch nicht gelesen</small></div>
           <button class="btn" id="calRead">Lesen</button></div>
+        <div class="row"><div style="min-width:0">Gesicherte Werte<small class="mono" id="calBackup">keine</small></div>
+          <div class="btns"><button class="btn" id="calSave">Sichern</button><button class="btn" id="calRestore">Zurückspielen</button></div></div>
+      </div>
+      <div class="card">
+        <h2>Profil</h2>
+        <div class="row"><div>Alle Seiten und Tasten als Datei<small>Zum Sichern oder Weitergeben</small></div>
+          <div class="btns"><button class="btn" id="expBtn">Exportieren</button><button class="btn" id="impBtn">Importieren</button></div></div>
+        <div class="row"><div>Protokoll<small>Falls etwas nicht klappt</small></div><button class="btn" id="logBtn">Öffnen</button></div>
       </div>
     </div>
   </section>
 
-  <aside class="side" id="editor">
-    <div class="keytitle"><b id="keyName">Taste 1</b><span id="keyPos"></span></div>
-    <label class="f">Beschriftung
-      <input type="text" id="kText" maxlength="23" placeholder="z. B. Spotify">
-    </label>
-    <p class="help" id="textHint">Umlaute werden auf dem Deck als ae, oe, ue angezeigt.</p>
-    <div class="f" style="display:flex;flex-direction:column;gap:8px">
-      <span style="font-size:13px;color:var(--muted)">Farbe</span>
-      <div class="swatches" id="swatches"></div>
-    </div>
-    <div style="display:flex;flex-direction:column;gap:8px">
-      <span style="font-size:13px;color:var(--muted)">Was soll die Taste tun?</span>
-      <div class="seg" id="types"></div>
-    </div>
-    <div id="valueBox"></div>
-    <div class="inline"><button class="btn" id="testBtn">Jetzt testen</button></div>
-  </aside>
+  <aside class="side" id="side"></aside>
 </main>
 
 <footer>
   <span id="msg"></span>
-  <span class="dirty" id="dirty" hidden>Nicht gespeichert</span>
-  <button class="btn primary" id="saveBtn">Speichern</button>
+  <span id="saved">Alles gespeichert</span>
 </footer>
 
+<div class="modal" id="ttModal" hidden>
+  <div class="box">
+    <div class="ttl"><b>Touch-Test</b><span>Zeichne mit dem Stift auf dem Deck</span>
+      <div class="tools"><button class="btn" id="ttClear">Leeren</button><button class="btn primary" id="ttEnd">Fertig</button></div></div>
+    <canvas id="ttCanvas" width="960" height="640"></canvas>
+    <p class="help">Liegen die Punkte nicht unter dem Stift, hilft „Neu kalibrieren“.</p>
+  </div>
+</div>
+
 <script>
-// ---------------------------------------------------------------- Vorschau ohne App (Browser): Beispieldaten
-// In der App laeuft die Seite ueber http://127.0.0.1, im Browser als Datei -> nur dann Beispieldaten
-const MOCK = location.protocol === "file:";
-const mockApi = {
-  _cfg:{version:1,time_sync:true,autostart:false,keys:[
-    {text:"Spotify",color:"#22C55E",action:{type:"program",value:"C:\\Users\\Du\\AppData\\Roaming\\Spotify\\Spotify.exe"}},
-    {text:"Discord",color:"#6366F1",action:{type:"program",value:"Discord"}},
-    {text:"Mikro aus",color:"#E11D48",action:{type:"hotkey",value:"Strg+Umschalt+M"}},
-    {text:"YouTube",color:"#DC2626",action:{type:"website",value:"youtube.com"}},
-    {text:"Screenshot",color:"#8B5CF6",action:{type:"hotkey",value:"Win+Umschalt+S"}},
-    {text:"F18",color:"#06B6D4",action:{type:"none",value:""}},
-    {text:"Mail",color:"#F97316",action:{type:"text",value:"Viele Grüße\nDein Name"}},
-    {text:"Play",color:"#1E293B",action:{type:"media",value:"play_pause"}},
-    {text:"Leiser",color:"#1E293B",action:{type:"media",value:"volume_down"}},
-    {text:"Lauter",color:"#1E293B",action:{type:"media",value:"volume_up"}}]},
-  async get_state(){return {config:this._cfg,status:{connected:true,port:"COM5",fw:"0.2.0",calibrated:true},
-    lastKey:{i:-1,at:0},message:"",calValues:null,version:"Vorschau"}},
-  async save(c){this._cfg=c;return {ok:true,sent:true,config:c}},
-  async test_key(){return {ok:true,message:"Vorschau: Aktion würde jetzt ausgeführt"}},
-  async calibrate(){return {ok:true}}, async read_calibration(){return {ok:true}},
-  async choose_program(){return "C:\\Programme\\Beispiel\\Programm.exe"}
-};
-const api = () => MOCK ? mockApi : window.pywebview.api;
-
-// ---------------------------------------------------------------- Zustand
-const COLORS=["#3B82F6","#E11D48","#22C55E","#F59E0B","#8B5CF6","#06B6D4","#F97316","#EC4899","#84CC16","#EAB308","#DC2626","#6366F1","#14B8A6","#64748B","#1E293B"];
-const TYPES=[["none","Nichts"],["program","Programm"],["website","Webseite"],["hotkey","Tastenkürzel"],["media","Medien"],["text","Text tippen"]];
-const MEDIA=[["play_pause","Play / Pause"],["next","Nächster Titel"],["previous","Vorheriger Titel"],["volume_up","Lauter"],["volume_down","Leiser"],["mute","Stumm"]];
-// Positionen wie im Gehaeuse (Pixel auf 480 x 320)
-const KX=[48,144,240,336,432], KY=[48,144], KS=76;
-let cfg=null, sel=0, dirty=false, lastHit=0;
+const api=()=>window.pywebview.api;
 const $=id=>document.getElementById(id);
+const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 
-function esc(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
-function setDirty(v){dirty=v;$("dirty").hidden=!v}
+// ---------------------------------------------------------------- Konstanten
+const COLORS=["#3B82F6","#E11D48","#22C55E","#F59E0B","#8B5CF6","#06B6D4","#F97316","#EC4899","#84CC16","#EAB308","#DC2626","#6366F1","#14B8A6","#64748B","#1E293B","#0F172A","#F8FAFC"];
+const ZONE_BG=["#111827","#0F172A","#1E293B","#1E3A8A","#14532D","#7F1D1D","#4C1D95","#000000"];
+const TYPES=[["none","Nichts"],["program","Programm"],["website","Webseite"],["hotkey","Tastenkürzel"],["media","Medien"],["text","Text"],["page","Seite / Ordner"],["system","System"],["multi","Multi-Aktion"]];
+const MEDIA=[["play_pause","Play / Pause"],["next","Nächster Titel"],["previous","Vorheriger Titel"],["volume_up","Lauter"],["volume_down","Leiser"],["mute","Stumm"]];
+const PAGE_SPECIAL=[["__back__","← Zurück"],["__home__","Hauptseite"],["__next__","Nächste Seite"],["__prev__","Vorherige Seite"]];
+const LIVE=[["none","Aus"],["clock","Uhrzeit"],["date","Datum"],["cpu","CPU"],["ram","RAM"],["counter","Zähler"],["stopwatch","Stoppuhr"]];
+const ZONES=[["clock","Uhr"],["weather","Wetter"],["nowplaying","Läuft gerade"],["system","CPU / RAM"],["text","Text"],["gif","GIF"],["empty","Leer"]];
+const EMOJI=["🎵","🎮","🎧","🎤","📷","💬","📧","🌐","📁","⚙️","🔒","💡","⭐","❤️","🔥","🚀","☕","🍕","✅","⏸️"];
+const KX=[48,144,240,336,432],KY=[48,144],KS=76,BAR_X=9,BAR_W=462,GAP=6;
+
+let cfg=null,pageId="home",sel={kind:"key",i:0},glyphs=[],sysActions=[],status={},previewToggled=false;
+let keyImgs={},barImgs=[],lastHit=0,iconEpoch=0,devicePage="",saveTimer=null,lastMsg="";
+
+const page=()=>cfg.pages.find(p=>p.id===pageId)||cfg.pages[0];
+const blankAction=()=>({type:"none",value:""});
+const blankKey=()=>({text:"",color:"#1E293B",text_color:"auto",show_text:true,icon:{kind:"none",value:""},icon_mode:"icon",
+  action:blankAction(),hold:blankAction(),toggle:{enabled:false,text:"",color:"#E11D48",icon:{kind:"none",value:""},action:blankAction()},live:"none"});
+const newId=()=>Math.random().toString(16).slice(2,10);
+const clone=o=>JSON.parse(JSON.stringify(o));
+
 function setMsg(t,warn){const m=$("msg");m.textContent=t||"";m.className=warn?"warn":""}
 
-// ---------------------------------------------------------------- Vorschau
-function buildScreen(){
-  const s=$("screen");
-  s.querySelectorAll(".key").forEach(e=>e.remove());
-  cfg.keys.forEach((k,i)=>{
-    const b=document.createElement("button");
-    b.className="key"+(i===sel?" sel":"");
-    b.style.left=((KX[i%5]-KS/2)/480*100)+"%";
-    b.style.top=((KY[Math.floor(i/5)]-KS/2)/320*100)+"%";
-    b.style.background=k.color;
-    b.textContent=k.text;
-    b.setAttribute("aria-label",`Taste ${i+1}: ${k.text}`);
-    b.onclick=()=>{sel=i;buildScreen();buildEditor()};
-    s.appendChild(b);
-    // zu lange Woerter verkleinern statt umbrechen (wie auf dem Deck)
-    let fs=2.7; while(b.scrollWidth>b.clientWidth+1&&fs>1.6){fs-=.1;b.style.fontSize=fs+'cqw'}
-  });
+// ---------------------------------------------------------------- Speichern (automatisch)
+function changed(opts={}){
+  $("saved").textContent="Wird gespeichert …"; $("saved").className="pending";
+  clearTimeout(saveTimer); saveTimer=setTimeout(save,opts.now?0:700);
 }
-function tickClock(){
-  const d=new Date(), wd=["Sonntag","Montag","Dienstag","Mittwoch","Donnerstag","Freitag","Samstag"][d.getDay()];
-  $("clock").textContent=d.toLocaleTimeString("de-DE",{hour:"2-digit",minute:"2-digit"});
-  $("date").innerHTML=`${wd}<br>${d.toLocaleDateString("de-DE",{day:"2-digit",month:"2-digit",year:"numeric"})}`;
+async function save(){
+  clearTimeout(saveTimer); saveTimer=null;
+  const r=await api().save(cfg);
+  $("saved").textContent=r.sent?"Gespeichert · auf dem Deck":"Gespeichert"; $("saved").className="";
 }
 
-// ---------------------------------------------------------------- Editor
-function buildEditor(){
-  const k=cfg.keys[sel];
-  $("keyName").textContent=`Taste ${sel+1}`;
-  $("keyPos").textContent=`Reihe ${Math.floor(sel/5)+1}, Spalte ${sel%5+1}`;
-  $("kText").value=k.text;
-  $("swatches").innerHTML=COLORS.map(c=>`<button class="sw${c===k.color?" on":""}" style="background:${c}" data-c="${c}" aria-label="Farbe ${c}"></button>`).join("")
-    +`<label class="sw custom${COLORS.includes(k.color)?"":" on"}" aria-label="Eigene Farbe"><input type="color" id="kColor" value="${k.color}"></label>`;
-  $("swatches").querySelectorAll("button").forEach(b=>b.onclick=()=>{k.color=b.dataset.c;setDirty(true);buildScreen();buildEditor()});
-  $("kColor").oninput=e=>{k.color=e.target.value.toUpperCase();setDirty(true);buildScreen()};
-  $("kColor").onchange=()=>buildEditor();
-  $("types").innerHTML=TYPES.map(([t,l])=>`<button class="${k.action.type===t?"on":""}" data-t="${t}">${l}</button>`).join("");
-  $("types").querySelectorAll("button").forEach(b=>b.onclick=()=>{
-    if(k.action.type!==b.dataset.t){k.action={type:b.dataset.t,value:b.dataset.t==="media"?"play_pause":""};setDirty(true);buildEditor()}});
-  buildValue();
+// ---------------------------------------------------------------- Seiten
+function renderPages(){
+  const el=$("pages");
+  el.innerHTML=cfg.pages.map((p,k)=>`<button class="tab${p.id===pageId?" on":""}" data-id="${p.id}" title="${p.apps.length?"Automatisch bei: "+esc(p.apps.join(", ")):""}">
+      ${p.id===devicePage?'<span class="live" title="Wird gerade auf dem Deck gezeigt"></span>':""}${esc(p.name)}${p.apps.length?' <i class="ico">&#xE8A7;</i>':""}</button>`).join("")
+    +`<button class="tab add" id="addPage" title="Neue Seite">+ Seite</button><span class="spacer"></span>
+      <button class="btn small" id="editPage"><i class="ico">&#xE713;</i>&nbsp; Seite</button>`;
+  el.querySelectorAll(".tab[data-id]").forEach(b=>b.onclick=()=>selectPage(b.dataset.id,true));
+  $("addPage").onclick=()=>{const p=addPage("Seite "+(cfg.pages.length+1));selectPage(p.id,true);sel={kind:"page"};renderSide();changed({now:true})};
+  $("editPage").onclick=()=>{sel={kind:"page"};renderDevice();renderSide()};
 }
-function buildValue(){
-  const k=cfg.keys[sel], a=k.action, box=$("valueBox");
-  const help={program:"Programm, Verknüpfung oder Ordner, der gestartet wird.",website:"Wird im Standardbrowser geöffnet.",
-    hotkey:"Klick auf „Aufnehmen“ und drück die Tasten, z. B. Strg + Umschalt + M.",text:"Wird getippt, als hättest du es selbst eingegeben."}[a.type]||"";
-  if(a.type==="none"){box.innerHTML=`<p class="help">Ohne Aktion. Ist die App beendet, sendet die Taste trotzdem F${13+sel}.</p>`;return}
-  if(a.type==="media"){
-    box.innerHTML=`<label class="f">Funktion<select id="kVal">${MEDIA.map(([v,l])=>`<option value="${v}"${a.value===v?" selected":""}>${l}</option>`).join("")}</select></label>`;
-  }else if(a.type==="text"){
-    box.innerHTML=`<label class="f">Text<textarea id="kVal" placeholder="Text, der getippt wird">${esc(a.value)}</textarea></label><p class="help">${help}</p>`;
-  }else{
-    const ph={program:"C:\\Pfad\\zum\\Programm.exe",website:"z. B. youtube.com",hotkey:"z. B. Strg+Umschalt+M"}[a.type];
-    const extra=a.type==="program"?`<button class="btn" id="pick">Auswählen …</button>`:a.type==="hotkey"?`<button class="btn" id="rec">Aufnehmen</button>`:"";
-    box.innerHTML=`<label class="f">${{program:"Programm",website:"Adresse",hotkey:"Tastenkürzel"}[a.type]}
-      <span class="inline"><input type="text" id="kVal" value="${esc(a.value)}" placeholder="${ph}">${extra}</span></label><p class="help">${help}</p>`;
+function addPage(name,withBack){
+  const p={id:newId(),name:name.slice(0,30),apps:[],keys:Array.from({length:10},blankKey)};
+  if(withBack) Object.assign(p.keys[0],{text:"Zurück",icon:{kind:"glyph",value:"E72B"},action:{type:"page",value:"__back__"}});
+  cfg.pages.push(p); return p;
+}
+function selectPage(id,goto){
+  pageId=id; if(sel.kind==="page") sel={kind:"key",i:0};
+  keyImgs={}; renderPages(); renderDevice(); refreshKeys(); renderSide();
+  if(goto) api().goto_page(id);
+}
+
+// ---------------------------------------------------------------- Vorschau
+function zoneRects(ws){const n=ws.length||1,avail=BAR_W-GAP*(n-1),s=ws.reduce((a,b)=>a+b,0)||1;let x=0;
+  return ws.map((f,i)=>{const w=i<n-1?Math.round(avail*f/s):BAR_W-x;const r=[x,w];x+=w+GAP;return r})}
+function renderDevice(){
+  const s=$("screen"); s.innerHTML="";
+  page().keys.forEach((k,i)=>{
+    const b=document.createElement("button");
+    b.className="key"+(sel.kind==="key"&&sel.i===i?" sel":"");
+    b.style.left=((KX[i%5]-KS/2)/480*100)+"%"; b.style.top=((KY[Math.floor(i/5)]-KS/2)/320*100)+"%";
+    b.innerHTML=keyImgs[i]?`<img src="${keyImgs[i]}" alt="">`:"";
+    b.setAttribute("aria-label",`Taste ${i+1}: ${k.text||"leer"}`);
+    b.draggable=true; b.dataset.i=i;
+    b.onclick=()=>{sel={kind:"key",i};previewToggled=false;renderDevice();renderSide()};
+    b.ondragstart=e=>{e.dataTransfer.setData("text/plain",i);b.classList.add("drag")};
+    b.ondragend=()=>b.classList.remove("drag");
+    b.ondragover=e=>{e.preventDefault();b.classList.add("over")};
+    b.ondragleave=()=>b.classList.remove("over");
+    b.ondrop=e=>{e.preventDefault();b.classList.remove("over");const from=+e.dataTransfer.getData("text/plain");if(from===i)return;
+      const ks=page().keys;[ks[from],ks[i]]=[ks[i],ks[from]];[keyImgs[from],keyImgs[i]]=[keyImgs[i],keyImgs[from]];
+      if(sel.kind==="key"&&sel.i===from)sel.i=i;renderDevice();renderSide();changed()};
+    s.appendChild(b);
+  });
+  const zones=cfg.bar.zones, rects=zoneRects(zones.map(z=>z.w));
+  zones.forEach((z,j)=>{
+    const [x,w]=rects[j], b=document.createElement("button");
+    b.className="zone"+(sel.kind==="zone"&&sel.i===j?" sel":"");
+    b.style.left=((BAR_X+x)/480*100)+"%"; b.style.width=(w/480*100)+"%";
+    b.innerHTML=barImgs[j]?`<img src="${barImgs[j]}" alt="">`:"";
+    b.setAttribute("aria-label","Leistenbereich "+(j+1));
+    b.onclick=()=>{sel={kind:"zone",i:j};renderDevice();renderSide()};
+    s.appendChild(b);
+    if(j<zones.length-1){
+      const d=document.createElement("div"); d.className="divider";
+      d.style.left=((BAR_X+x+w+GAP/2)/480*100)+"%"; d.title="Ziehen zum Ändern der Breite";
+      d.onpointerdown=e=>startResize(e,j,d); s.appendChild(d);
+    }
+  });
+}
+function startResize(e,j,el){
+  e.preventDefault(); el.setPointerCapture(e.pointerId); el.classList.add("active");
+  const zones=cfg.bar.zones, sum=zones.reduce((a,z)=>a+z.w,0), scr=$("screen").getBoundingClientRect();
+  const startX=e.clientX, a0=zones[j].w, b0=zones[j+1].w, min=0.12*sum;
+  el.onpointermove=ev=>{
+    const d=(ev.clientX-startX)/scr.width*480/(BAR_W-GAP*(zones.length-1))*sum;
+    let a=Math.max(min,Math.min(a0+b0-min,a0+d)); zones[j].w=a; zones[j+1].w=a0+b0-a;
+    const rects=zoneRects(zones.map(z=>z.w));
+    $("screen").querySelectorAll(".zone").forEach((zb,k)=>{zb.style.left=((BAR_X+rects[k][0])/480*100)+"%";zb.style.width=(rects[k][1]/480*100)+"%"});
+    $("screen").querySelectorAll(".divider").forEach((dv,k)=>dv.style.left=((BAR_X+rects[k][0]+rects[k][1]+GAP/2)/480*100)+"%");
+  };
+  el.onpointerup=()=>{el.onpointermove=null;el.classList.remove("active");
+    const s=zones.reduce((a,z)=>a+z.w,0);zones.forEach(z=>z.w=+(z.w/s).toFixed(3));refreshBar();changed();if(sel.kind==="zone")renderSide()};
+}
+const keyTimers={};
+function refreshKey(i,delay=120){
+  clearTimeout(keyTimers[i]);
+  keyTimers[i]=setTimeout(async()=>{
+    const k=page().keys[i]; const toggled=sel.kind==="key"&&sel.i===i&&previewToggled;
+    const url=await api().preview_key(k,toggled);
+    if(url){keyImgs[i]=url;const img=$("screen").querySelector(`.key[data-i="${i}"]`);if(img)img.innerHTML=`<img src="${url}" alt="">`}
+  },delay);
+}
+function refreshKeys(){for(let i=0;i<10;i++)refreshKey(i,0)}
+let barTimer=null;
+function refreshBar(delay=150){
+  clearTimeout(barTimer);
+  barTimer=setTimeout(async()=>{const r=await api().preview_bar(cfg.bar.zones);barImgs=r.map(z=>z.img);renderDevice()},delay);
+}
+
+// ---------------------------------------------------------------- Seitenleiste
+function renderSide(){
+  const side=$("side");
+  if(sel.kind==="zone") return renderZone(side);
+  if(sel.kind==="page") return renderPageEditor(side);
+  renderKey(side);
+}
+function swatches(cur,list,onPick,id){
+  const custom=!list.includes(cur);
+  return {html:`<div class="swatches" id="${id}">${list.map(c=>`<button class="sw${c===cur?" on":""}" style="background:${c}" data-c="${c}" aria-label="Farbe ${c}"></button>`).join("")}
+    <label class="sw custom${custom?" on":""}" aria-label="Eigene Farbe"><input type="color" value="${cur}"></label></div>`,
+    bind(){const el=$(id);el.querySelectorAll("button").forEach(b=>b.onclick=()=>onPick(b.dataset.c,true));
+      const inp=el.querySelector("input");inp.oninput=e=>onPick(e.target.value.toUpperCase(),false);inp.onchange=e=>onPick(e.target.value.toUpperCase(),true)}};
+}
+function segment(id,opts,cur,cls=""){return `<div class="seg ${cls}" id="${id}">${opts.map(([v,l])=>`<button data-v="${v}" class="${v===cur?"on":""}">${l}</button>`).join("")}</div>`}
+function bindSeg(id,fn){$(id).querySelectorAll("button").forEach(b=>b.onclick=()=>fn(b.dataset.v))}
+
+// ---- Taste
+function renderKey(side){
+  const i=sel.i,k=page().keys[i];
+  const upd=(rerender)=>{refreshKey(i);changed();if(rerender)renderKey(side)};
+  const col=swatches(k.color,COLORS,(c,re)=>{k.color=c;upd(re)},"kColors");
+  side.innerHTML=`
+    <div class="ttl"><b>Taste ${i+1}</b><span>${esc(page().name)} · Reihe ${Math.floor(i/5)+1}, Spalte ${i%5+1}</span>
+      <div class="tools"><button class="iconbtn ico" id="kCopy" title="Taste kopieren">&#xE8C8;</button><button class="iconbtn ico" id="kPaste" title="Einfügen">&#xE77F;</button><button class="iconbtn ico" id="kClear" title="Leeren">&#xE74D;</button></div></div>
+    <div class="sec"><div class="lab">Beschriftung <label class="inline" style="gap:6px;font-size:12px">anzeigen <span class="toggle" style="transform:scale(.8)"><input type="checkbox" id="kShow"${k.show_text?" checked":""}><span></span></span></label></div>
+      <input type="text" id="kText" maxlength="40" placeholder="z. B. Spotify" value="${esc(k.text)}"></div>
+    <div class="sec"><div class="lab">Farbe</div>${col.html}
+      <div class="lab" style="margin-top:2px">Schriftfarbe ${segment("kTc",[["auto","Automatisch"],["#FFFFFF","Weiß"],["#111827","Schwarz"]],k.text_color,"")}</div></div>
+    <div class="sec"><div class="lab">Icon</div>${segment("kIk",[["none","Kein"],["auto","Auto"],["glyph","Symbol"],["emoji","Emoji"],["file","Bild/GIF"]],k.icon.kind,"c5")}<div id="kIconBox"></div></div>
+    <div class="sec"><div class="lab">Was soll die Taste tun?</div><div id="kAction"></div></div>
+    <details id="dHold"${k.hold.type!=="none"?" open":""}><summary>Lang drücken${k.hold.type!=="none"?'<span class="badge">an</span>':""}</summary><div class="in">
+      <p class="help">Länger als eine halbe Sekunde drücken löst diese zweite Aktion aus.</p><div id="kHold"></div></div></details>
+    <details id="dTg"${k.toggle.enabled?" open":""}><summary>Umschalt-Taste (2 Zustände)${k.toggle.enabled?'<span class="badge">an</span>':""}</summary><div class="in" id="kToggle"></div></details>
+    <details id="dLive"${k.live!=="none"?" open":""}><summary>Live-Anzeige${k.live!=="none"?'<span class="badge">'+LIVE.find(l=>l[0]===k.live)[1]+"</span>":""}</summary><div class="in">
+      ${segment("kLive",LIVE,k.live,"c4")}<p class="help" id="liveHelp"></p></div></details>
+    <div class="inline"><button class="btn" id="testBtn">Jetzt testen</button></div>`;
+  col.bind();
+  $("kText").oninput=e=>{k.text=e.target.value;refreshKey(i);changed()};
+  $("kShow").onchange=e=>{k.show_text=e.target.checked;upd()};
+  bindSeg("kTc",v=>{k.text_color=v;upd(true)});
+  bindSeg("kIk",v=>{if(k.icon.kind!==v){k.icon={kind:v,value:v==="glyph"?"E768":v==="emoji"?"🎵":""};upd(true)}});
+  iconEditor($("kIconBox"),k.icon,k,()=>upd(),()=>upd(true),true);
+  actionEditor($("kAction"),k.action,()=>upd(),()=>upd(true),{key:k});
+  actionEditor($("kHold"),k.hold,()=>upd(),()=>upd(true),{key:k});
+  toggleEditor($("kToggle"),k,upd);
+  bindSeg("kLive",v=>{k.live=v;upd(true)});
+  $("liveHelp").textContent={none:"Die Taste zeigt Beschriftung und Icon.",clock:"Zeigt die aktuelle Uhrzeit.",date:"Zeigt Wochentag und Datum.",
+    cpu:"Zeigt die CPU-Auslastung.",ram:"Zeigt die Arbeitsspeicher-Auslastung.",counter:"Zählt jeden Druck mit (die Aktion läuft trotzdem).",
+    stopwatch:"Drücken startet/stoppt, lang drücken setzt zurück."}[k.live];
+  $("testBtn").onclick=async()=>{await save();const r=await api().test_key(pageId,i);setMsg(r.message||(r.ok?"Ausgeführt":"Fehlgeschlagen"),!r.ok)};
+  $("kCopy").onclick=()=>{window._clip=clone(k);setMsg("Taste kopiert – andere Taste wählen und Einfügen")};
+  $("kPaste").onclick=()=>{if(!window._clip)return setMsg("Erst eine Taste kopieren",true);page().keys[i]=clone(window._clip);refreshKey(i);changed();renderKey(side)};
+  $("kClear").onclick=()=>{page().keys[i]=blankKey();refreshKey(i);changed();renderKey(side)};
+}
+
+function iconEditor(box,icon,k,onChange,onRerender,allowFile){
+  if(icon.kind==="none"){box.innerHTML="";return}
+  if(icon.kind==="auto"){box.innerHTML=`<p class="help">Programm-Icon aus der .exe, Logo der Webseite oder ein passendes Symbol zur Aktion.</p>`;return}
+  if(icon.kind==="glyph"){
+    const cols=["#FFFFFF","#111827","#3CC4D3","#4ADE80","#F87171","#FBBF24"];
+    box.innerHTML=`<div class="glyphs">${glyphs.map(([c,n])=>`<button data-c="${c}" title="${esc(n)}" class="${c===icon.value?"on":""}">&#x${c};</button>`).join("")}</div>
+      <div class="lab" style="font-size:12px;color:var(--muted);display:flex;gap:6px;align-items:center">Symbolfarbe ${cols.map(c=>`<button class="sw${(icon.color||"#FFFFFF")===c?" on":""}" data-col="${c}" style="background:${c};width:22px;height:22px"></button>`).join("")}</div>`;
+    box.querySelectorAll(".glyphs button").forEach(b=>b.onclick=()=>{icon.value=b.dataset.c;box.querySelectorAll(".glyphs button").forEach(x=>x.classList.toggle("on",x===b));onChange()});
+    box.querySelectorAll("[data-col]").forEach(b=>b.onclick=()=>{icon.color=b.dataset.col;onRerender()});
+    return;
   }
-  const v=$("kVal"); v.oninput=v.onchange=()=>{a.value=v.value;setDirty(true)};
-  if($("pick")) $("pick").onclick=async()=>{const p=await api().choose_program(); if(p){a.value=p;v.value=p;setDirty(true);
-      if(/^F\d+$/.test(k.text)){k.text=p.split(/[\\/]/).pop().replace(/\.(exe|lnk|bat)$/i,"").slice(0,23);$("kText").value=k.text;buildScreen()}}};
-  if($("rec")) $("rec").onclick=()=>recordHotkey(v,a);
+  if(icon.kind==="emoji"){
+    box.innerHTML=`<div class="inline"><input type="text" id="emoIn" value="${esc(icon.value)}" maxlength="12" style="font-size:18px;width:80px;flex:none"><span class="help">Eigene Emoji: Win + . (Punkt)</span></div>
+      <div class="emojis">${EMOJI.map(e=>`<button>${e}</button>`).join("")}</div>`;
+    $("emoIn").oninput=e=>{icon.value=e.target.value.trim();onChange()};
+    box.querySelectorAll(".emojis button").forEach(b=>b.onclick=()=>{icon.value=b.textContent;$("emoIn").value=icon.value;onChange()});
+    return;
+  }
+  if(icon.kind==="file"){
+    const name=icon.value?icon.value.split(/[\\/]/).pop():"Noch kein Bild";
+    box.innerHTML=`<div class="inline"><span class="mono" style="flex:1">${esc(name)}</span><button class="btn" id="imgPick">Bild wählen …</button></div>
+      ${k?`<div class="lab" style="font-size:12px;color:var(--muted)">Darstellung</div>${segment("kIm",[["icon","Als Icon"],["full","Ganze Taste"]],k.icon_mode,"c2")}`:""}
+      <p class="help">PNG, JPG, ICO oder GIF. Animierte GIFs laufen auf dem Deck (bis zu 3 pro Seite).</p>`;
+    $("imgPick").onclick=async()=>{const p=await api().choose_image(false);if(p){icon.value=p;onRerender()}};
+    if(k) bindSeg("kIm",v=>{k.icon_mode=v;onRerender()});
+  }
 }
-function recordHotkey(input,a){
-  const btn=$("rec"); btn.textContent="Drück jetzt …"; btn.classList.add("rec");
+
+function toggleEditor(box,k,upd){
+  const t=k.toggle;
+  if(!t.enabled){box.innerHTML=`<p class="help">Jeder Druck wechselt zwischen zwei Zuständen, z. B. „Mikro an“ / „Mikro aus“, jeweils mit eigener Beschriftung, Farbe und Aktion.</p>
+    <button class="btn" id="tgOn">Umschalt-Taste einschalten</button>`;
+    $("tgOn").onclick=()=>{t.enabled=true;if(!t.text)t.text=k.text;upd(true)};return}
+  const col=swatches(t.color,COLORS,(c,re)=>{t.color=c;upd(re)},"tgColors");
+  box.innerHTML=`<div class="inline"><span class="help" style="flex:1">So sieht die Taste im 2. Zustand aus:</span>
+      <button class="btn small" id="tgView">${previewToggled?"Zustand 1 zeigen":"Zustand 2 zeigen"}</button></div>
+    <label class="f">Beschriftung<input type="text" id="tgText" maxlength="40" value="${esc(t.text)}"></label>
+    <div class="sec"><div class="lab">Farbe</div>${col.html}</div>
+    <div class="sec"><div class="lab">Icon</div>${segment("tgIk",[["none","Wie Zustand 1"],["glyph","Symbol"],["emoji","Emoji"],["file","Bild"]],t.icon.kind,"c4")}<div id="tgIconBox"></div></div>
+    <div class="sec"><div class="lab">Aktion im 2. Zustand</div><p class="help" style="margin-top:-4px">„Nichts“ = dieselbe Aktion wie in Zustand 1</p><div id="tgAction"></div></div>
+    <button class="btn danger small" id="tgOff">Umschalt-Taste ausschalten</button>`;
+  col.bind();
+  $("tgView").onclick=()=>{previewToggled=!previewToggled;refreshKey(sel.i,0);upd(true)};
+  $("tgText").oninput=e=>{t.text=e.target.value;upd()};
+  bindSeg("tgIk",v=>{if(t.icon.kind!==v){t.icon={kind:v,value:v==="glyph"?"E720":v==="emoji"?"🔇":""};upd(true)}});
+  iconEditor($("tgIconBox"),t.icon,null,()=>upd(),()=>upd(true));
+  actionEditor($("tgAction"),t.action,()=>upd(),()=>upd(true),{key:k});
+  $("tgOff").onclick=()=>{t.enabled=false;previewToggled=false;upd(true)};
+}
+
+// ---- Aktionen (wiederverwendbar: Taste, Lang drücken, Umschalt, Multi-Schritte)
+function pageOptions(cur){
+  return PAGE_SPECIAL.map(([v,l])=>`<option value="${v}"${cur===v?" selected":""}>${l}</option>`).join("")
+    +`<optgroup label="Seiten">${cfg.pages.map(p=>`<option value="${p.id}"${cur===p.id?" selected":""}>${esc(p.name)}</option>`).join("")}</optgroup>`;
+}
+function sysOptions(cur){return [...sysActions,["deck_sleep","Deck schlafen legen"]].map(([v,l])=>`<option value="${v}"${cur===v?" selected":""}>${esc(l)}</option>`).join("")}
+function actionEditor(box,a,onChange,onRerender,ctx={}){
+  const types=ctx.noMulti?TYPES.filter(t=>t[0]!=="multi"):TYPES;
+  box.innerHTML=`<select class="atype">${types.map(([v,l])=>`<option value="${v}"${a.type===v?" selected":""}>${l}</option>`).join("")}</select><div class="aval" style="margin-top:8px"></div>`;
+  box.querySelector(".atype").onchange=e=>{const t=e.target.value;a.type=t;
+    a.value=t==="media"?"play_pause":t==="system"?"lock":t==="page"?"__back__":t==="multi"?[]:"";onRerender()};
+  const val=box.querySelector(".aval"), t=a.type;
+  const help={program:"Programm, Verknüpfung, Datei oder Ordner.",website:"Öffnet im Standardbrowser.",
+    hotkey:"„Aufnehmen“ klicken und die Tasten drücken, z. B. Strg + Umschalt + M.",text:"Wird getippt, als hättest du es selbst eingegeben."}[t]||"";
+  if(t==="none"){val.innerHTML=ctx.key?`<p class="help">Ohne Aktion.</p>`:"";return}
+  if(t==="media"){val.innerHTML=`<select>${MEDIA.map(([v,l])=>`<option value="${v}"${a.value===v?" selected":""}>${l}</option>`).join("")}</select>`}
+  else if(t==="system"){val.innerHTML=`<select>${sysOptions(a.value)}</select>`}
+  else if(t==="page"){val.innerHTML=`<div class="inline"><select>${pageOptions(a.value)}</select><button class="btn" data-newf>+ Ordner</button></div>
+      <p class="help">„+ Ordner“ legt eine neue Seite mit Zurück-Taste an.</p>`;
+    val.querySelector("[data-newf]").onclick=()=>{const nm=(ctx.key&&ctx.key.text)||"Ordner";const p=addPage(nm,true);a.value=p.id;
+      if(ctx.key&&ctx.key.icon.kind==="none")ctx.key.icon={kind:"glyph",value:"E8B7"};renderPages();onRerender();setMsg(`Ordner „${p.name}“ angelegt – oben bei den Seiten`)}}
+  else if(t==="text"){val.innerHTML=`<textarea placeholder="Text, der getippt wird">${esc(a.value)}</textarea><p class="help">${help}</p>`}
+  else if(t==="multi"){multiEditor(val,a,onChange,onRerender);return}
+  else{
+    const ph={program:"C:\\Pfad\\zum\\Programm.exe",website:"z. B. youtube.com",hotkey:"z. B. Strg+Umschalt+M"}[t];
+    const extra=t==="program"?`<button class="btn" data-pick>Auswählen …</button>`:t==="hotkey"?`<button class="btn" data-rec>Aufnehmen</button>`:"";
+    val.innerHTML=`<div class="inline"><input type="text" value="${esc(a.value)}" placeholder="${ph}">${extra}</div><p class="help">${help}</p>`;
+  }
+  const v=val.querySelector("input,select,textarea");
+  if(v) v.oninput=v.onchange=()=>{a.value=v.value;onChange()};
+  const pick=val.querySelector("[data-pick]");
+  if(pick) pick.onclick=async()=>{const p=await api().choose_program();if(p){a.value=p;v.value=p;
+    if(ctx.key&&(!ctx.key.text||/^F\d+$/.test(ctx.key.text))){ctx.key.text=p.split(/[\\/]/).pop().replace(/\.(exe|lnk|bat|cmd)$/i,"").slice(0,40);
+      if(ctx.key.icon.kind==="none")ctx.key.icon={kind:"auto",value:""};onRerender();return}
+    onChange()}};
+  const rec=val.querySelector("[data-rec]");
+  if(rec) rec.onclick=()=>recordHotkey(rec,v,a,onChange);
+}
+function multiEditor(val,a,onChange,onRerender){
+  if(!Array.isArray(a.value))a.value=[];
+  const stepTypes=[["program","Programm"],["website","Webseite"],["hotkey","Tastenkürzel"],["media","Medien"],["text","Text"],["system","System"],["page","Seite"],["delay","Pause (ms)"]];
+  val.innerHTML=`<div class="steps">${a.value.map((s,n)=>`<div class="step" data-n="${n}"><span class="n">${n+1}</span>
+      <select class="st">${stepTypes.map(([v,l])=>`<option value="${v}"${s.type===v?" selected":""}>${l}</option>`).join("")}</select>
+      ${s.type==="media"?`<select class="sv">${MEDIA.map(([v,l])=>`<option value="${v}"${s.value===v?" selected":""}>${l}</option>`).join("")}</select>`
+       :s.type==="system"?`<select class="sv">${sysOptions(s.value)}</select>`
+       :s.type==="page"?`<select class="sv">${pageOptions(s.value)}</select>`
+       :`<input class="sv" type="${s.type==="delay"?"number":"text"}" value="${esc(s.value)}" placeholder="${{program:"Pfad",website:"Adresse",hotkey:"Strg+C",text:"Text",delay:"500"}[s.type]||""}">`}
+      <span><button class="iconbtn ico" data-up title="Nach oben">&#xE74A;</button><button class="iconbtn ico" data-del title="Entfernen">&#xE711;</button></span></div>`).join("")}</div>
+    <div class="inline" style="margin-top:4px"><button class="btn small" data-add>+ Schritt</button><button class="btn small" data-delay>+ Pause</button></div>
+    <p class="help">Die Schritte laufen nacheinander ab, z. B. Programm starten → 2000 ms Pause → Tastenkürzel.</p>`;
+  val.querySelectorAll(".step").forEach(row=>{const n=+row.dataset.n,s=a.value[n];
+    row.querySelector(".st").onchange=e=>{s.type=e.target.value;s.value=s.type==="media"?"play_pause":s.type==="system"?"lock":s.type==="page"?"__back__":s.type==="delay"?"500":"";onRerender()};
+    const sv=row.querySelector(".sv");sv.oninput=sv.onchange=()=>{s.value=sv.value;onChange()};
+    row.querySelector("[data-del]").onclick=()=>{a.value.splice(n,1);onRerender()};
+    row.querySelector("[data-up]").onclick=()=>{if(n>0){[a.value[n-1],a.value[n]]=[a.value[n],a.value[n-1]];onRerender()}};
+  });
+  val.querySelector("[data-add]").onclick=()=>{a.value.push({type:"program",value:""});onRerender()};
+  val.querySelector("[data-delay]").onclick=()=>{a.value.push({type:"delay",value:"500"});onRerender()};
+}
+function recordHotkey(btn,input,a,onChange){
+  btn.textContent="Drück jetzt …"; btn.classList.add("rec");
   const names={Control:"Strg",Shift:"Umschalt",Alt:"Alt",AltGraph:"AltGr",Meta:"Win"," ":"Leertaste",Enter:"Enter",Escape:"Esc",Tab:"Tab",
     Backspace:"Backspace",Delete:"Entf",Insert:"Einfg",Home:"Pos1",End:"Ende",PageUp:"BildAuf",PageDown:"BildAb",
     ArrowUp:"Up",ArrowDown:"Down",ArrowLeft:"Left",ArrowRight:"Right",PrintScreen:"Druck"};
   const handler=e=>{
     e.preventDefault();
-    if(["Control","Shift","Alt","Meta","AltGraph"].includes(e.key))return;   // auf die eigentliche Taste warten
+    if(["Control","Shift","Alt","Meta","AltGraph"].includes(e.key))return;
     const parts=[]; if(e.ctrlKey)parts.push("Strg"); if(e.shiftKey)parts.push("Umschalt"); if(e.altKey)parts.push("Alt"); if(e.metaKey)parts.push("Win");
-    let k=names[e.key]||(/^F\d{1,2}$/.test(e.key)?e.key:(e.code.startsWith("Key")?e.code.slice(3):e.code.startsWith("Digit")?e.code.slice(5):e.key.toUpperCase()));
-    parts.push(k); a.value=parts.join("+"); input.value=a.value; setDirty(true);
+    const k=names[e.key]||(/^F\d{1,2}$/.test(e.key)?e.key:(e.code.startsWith("Key")?e.code.slice(3):e.code.startsWith("Digit")?e.code.slice(5):e.key.toUpperCase()));
+    parts.push(k); a.value=parts.join("+"); input.value=a.value; onChange();
     window.removeEventListener("keydown",handler,true); btn.textContent="Aufnehmen"; btn.classList.remove("rec");
   };
   window.addEventListener("keydown",handler,true);
 }
 
+// ---- Leistenbereich
+function renderZone(side){
+  const j=sel.i,z=cfg.bar.zones[j],n=cfg.bar.zones.length;
+  const upd=re=>{refreshBar();changed();if(re)renderZone(side)};
+  const bg=swatches(z.bg,ZONE_BG,(c,re)=>{z.bg=c;upd(re)},"zBg");
+  side.innerHTML=`
+    <div class="ttl"><b>Leiste · Bereich ${j+1}</b><span>${Math.round(z.w/cfg.bar.zones.reduce((a,b)=>a+b.w,0)*100)} % breit</span></div>
+    <div class="sec"><div class="lab">Inhalt</div>${segment("zType",ZONES,z.type,"c4")}</div>
+    <div id="zOpts" class="sec"></div>
+    <div class="sec"><div class="lab">Hintergrund</div>${bg.html}</div>
+    <hr>
+    <div class="inline"><button class="btn" id="zSplit"${n>=4?" disabled":""}>Bereich teilen</button><button class="btn danger" id="zDel"${n<=1?" disabled":""}>Bereich entfernen</button></div>
+    <p class="help">Bis zu 4 Bereiche. Die Breite änderst du direkt in der Vorschau an den Trennstrichen. Tippen auf „Läuft gerade“ am Deck = Play/Pause.</p>`;
+  bg.bind();
+  bindSeg("zType",v=>{if(z.type!==v){z.type=v;z.opts=v==="clock"?{seconds:false,date:true}:{};upd(true)}});
+  const o=z.opts, box=$("zOpts");
+  if(z.type==="clock"){
+    box.innerHTML=`<div class="row"><div>Sekunden anzeigen</div><label class="toggle"><input type="checkbox" id="zSec"${o.seconds?" checked":""}><span></span></label></div>
+      <div class="row"><div>Datum anzeigen</div><label class="toggle"><input type="checkbox" id="zDate"${o.date!==false?" checked":""}><span></span></label></div>`;
+    $("zSec").onchange=e=>{o.seconds=e.target.checked;upd()}; $("zDate").onchange=e=>{o.date=e.target.checked;upd()};
+  }else if(z.type==="weather"){
+    box.innerHTML=`<label class="f">Ort<span class="inline"><input type="text" id="zCity" placeholder="z. B. Berlin" value="${esc(o.name||"")}"><button class="btn" id="zFind">Suchen</button></span></label>
+      <div class="results" id="zRes"></div><p class="help">Wetterdaten von Open-Meteo, alle 15 Minuten neu.</p>`;
+    const find=async()=>{const r=await api().geocode($("zCity").value);const el=$("zRes");
+      if(!r.ok){el.innerHTML=`<p class="help">Keine Verbindung: ${esc(r.message)}</p>`;return}
+      if(!r.results.length){el.innerHTML=`<p class="help">Nichts gefunden.</p>`;return}
+      el.innerHTML=r.results.map((x,k)=>`<button data-k="${k}">${esc(x.label)}</button>`).join("");
+      el.querySelectorAll("button").forEach(b=>b.onclick=()=>{const x=r.results[+b.dataset.k];o.name=x.name;o.lat=x.lat;o.lon=x.lon;upd(true);setTimeout(()=>refreshBar(),2500)})};
+    $("zFind").onclick=find; $("zCity").onkeydown=e=>{if(e.key==="Enter")find()};
+  }else if(z.type==="text"){
+    box.innerHTML=`<label class="f">Text<textarea id="zText" maxlength="120">${esc(o.text||"")}</textarea></label>
+      <div class="lab" style="font-size:13px;color:var(--muted)">Textfarbe</div><div id="zTcBox"></div>`;
+    const tc=swatches(o.color||"#FFFFFF",["#FFFFFF","#94A3B8","#3CC4D3","#4ADE80","#FBBF24","#F87171","#A78BFA","#111827"],(c,re)=>{o.color=c;upd(re)},"zTc");
+    $("zTcBox").innerHTML=tc.html; tc.bind();
+    $("zText").oninput=e=>{o.text=e.target.value;upd()};
+  }else if(z.type==="gif"){
+    const name=o.path?o.path.split(/[\\/]/).pop():"Noch kein GIF";
+    box.innerHTML=`<div class="inline"><span class="mono" style="flex:1">${esc(name)}</span><button class="btn" id="zGif">GIF wählen …</button></div>
+      <p class="help">Wird passend zugeschnitten. Lange GIFs werden ausgedünnt, damit sie in den Speicher des Decks passen.</p>`;
+    $("zGif").onclick=async()=>{const p=await api().choose_image(true);if(p){o.path=p;upd(true)}};
+  }else if(z.type==="nowplaying"){
+    box.innerHTML=`<p class="help">Zeigt Titel, Interpret, Cover und Fortschritt von Spotify, YouTube im Browser und anderen Playern, die Windows kennt.</p>`;
+  }else if(z.type==="system"){
+    box.innerHTML=`<p class="help">CPU- und Arbeitsspeicher-Auslastung, alle 2 Sekunden neu.</p>`;
+  }else box.innerHTML="";
+  $("zSplit").onclick=()=>{const half=z.w/2;z.w=half;cfg.bar.zones.splice(j+1,0,{w:half,type:"empty",opts:{},bg:z.bg});sel={kind:"zone",i:j+1};barImgs=[];renderDevice();refreshBar(0);changed();renderZone(side)};
+  $("zDel").onclick=()=>{const w=z.w;cfg.bar.zones.splice(j,1);cfg.bar.zones[Math.max(0,j-1)].w+=w;sel={kind:"zone",i:Math.max(0,j-1)};barImgs=[];renderDevice();refreshBar(0);changed();renderZone(side)};
+}
+
+// ---- Seite
+async function renderPageEditor(side){
+  const p=page(), idx=cfg.pages.indexOf(p);
+  side.innerHTML=`
+    <div class="ttl"><b>Seite</b><span>${idx===0?"Hauptseite (auch ohne App auf dem Deck)":"Seite "+(idx+1)+" von "+cfg.pages.length}</span></div>
+    <label class="f">Name<input type="text" id="pName" maxlength="30" value="${esc(p.name)}"></label>
+    <div class="sec"><div class="lab">Automatisch zeigen, wenn dieses Programm im Vordergrund ist</div>
+      <div class="chips" id="pApps">${p.apps.map((a,k)=>`<span class="chip">${esc(a)}<button data-k="${k}" aria-label="Entfernen">×</button></span>`).join("")||'<span class="help">Noch kein Programm</span>'}</div>
+      <div class="inline"><select id="pAppSel"><option value="">Laufendes Programm wählen …</option></select><button class="btn" id="pAppAdd">Hinzufügen</button></div>
+      <p class="help">Wie die Smart Profiles bei Elgato: Wechselst du zu Spotify, springt das Deck auf diese Seite und danach wieder zurück.</p></div>
+    <hr>
+    <div class="inline"><button class="btn" id="pLeft"${idx<=1?" disabled":""}>← Verschieben</button><button class="btn" id="pRight"${idx===0||idx>=cfg.pages.length-1?" disabled":""}>Verschieben →</button>
+      <button class="btn" id="pDup">Duplizieren</button></div>
+    <button class="btn danger" id="pDel"${idx===0?" disabled":""}>Seite löschen</button>`;
+  $("pName").oninput=e=>{p.name=e.target.value||"Seite";renderPages();changed()};
+  $("pApps").querySelectorAll("button").forEach(b=>b.onclick=()=>{p.apps.splice(+b.dataset.k,1);renderPages();changed();renderPageEditor(side)});
+  $("pAppAdd").onclick=()=>{const v=$("pAppSel").value.trim().toLowerCase();if(v&&!p.apps.includes(v)){p.apps.push(v);renderPages();changed();renderPageEditor(side)}};
+  const mv=d=>{cfg.pages.splice(idx,1);cfg.pages.splice(idx+d,0,p);renderPages();changed();renderPageEditor(side)};
+  $("pLeft").onclick=()=>mv(-1); $("pRight").onclick=()=>mv(1);
+  $("pDup").onclick=()=>{const c=clone(p);c.id=newId();c.name=(p.name+" Kopie").slice(0,30);c.apps=[];cfg.pages.splice(idx+1,0,c);selectPage(c.id,true);sel={kind:"page"};renderSide();changed()};
+  $("pDel").onclick=()=>{if(!confirm(`Seite „${p.name}“ löschen?`))return;cfg.pages.splice(idx,1);
+    cfg.pages.forEach(pp=>pp.keys.forEach(k=>{[k.action,k.hold,k.toggle.action].forEach(a=>{if(a.type==="page"&&a.value===p.id){a.value="__back__"}})}));
+    selectPage(cfg.pages[Math.max(0,idx-1)].id,true);changed({now:true})};
+  const apps=await api().running_apps();
+  const s=$("pAppSel"); if(s) s.innerHTML+=apps.map(a=>`<option>${esc(a)}</option>`).join("");
+}
+
 // ---------------------------------------------------------------- Status vom Deck
-function showState(st){
-  const s=st.status, el=$("status");
-  el.classList.toggle("on",!!s.connected);
-  $("statusText").textContent=s.connected?`Deck verbunden · ${s.port}${s.fw?" · Firmware "+s.fw:""}`:"Deck nicht gefunden – USB-Kabel an „USB“ stecken";
-  $("calBtn").disabled=$("calRead").disabled=!s.connected;
+function showStatus(st){
+  status=st.status; const el=$("status"), s=st.status;
+  const old=s.connected&&!(s.caps||[]).includes("img");
+  el.classList.toggle("on",!!s.connected&&!old); el.classList.toggle("old",old);
+  $("statusText").textContent=!s.connected?"Deck nicht gefunden – USB-Kabel an „USB“ stecken"
+    :old?`Verbunden · Firmware ${s.fw} – bitte auf 0.3 aktualisieren für Icons & Leiste`:`Deck verbunden · ${s.port} · Firmware ${s.fw}`;
+  ["calBtn","calRead","ttBtn","sleepNow"].forEach(id=>$(id).disabled=!s.connected);
+  $("calRestore").disabled=!s.connected||!cfg.cal_backup;
+  $("bright").disabled=!s.light; $("brightHint").textContent=s.light?"":"Braucht den Umbau aus der Anleitung (LED an einen Pin)";
   if(st.calValues)$("calVals").textContent=st.calValues.join(", ");
-  if(st.message)setMsg(st.message,st.message.startsWith("⚠"));
-  if(st.lastKey && st.lastKey.at>lastHit){
+  if(st.message&&st.message!==lastMsg){lastMsg=st.message;setMsg(st.message,st.message.startsWith("⚠"))}
+  if(st.iconEpoch!==iconEpoch){iconEpoch=st.iconEpoch;refreshKeys()}
+  if(st.page!==devicePage){devicePage=st.page;if(st.page!==pageId&&!saveTimer){selectPage(st.page,false)}else renderPages()}
+  if(st.lastKey&&st.lastKey.at>lastHit){
     lastHit=st.lastKey.at;
-    const b=$("screen").querySelectorAll(".key")[st.lastKey.i];
-    if(b){b.classList.add("hit");setTimeout(()=>b.classList.remove("hit"),220)}
+    const b=$("screen").querySelector(`.key[data-i="${st.lastKey.i}"]`);
+    if(b&&st.lastKey.page===pageId){b.classList.add("hit");setTimeout(()=>b.classList.remove("hit"),220)}
   }
+  if(st.touches&&st.touches.length)drawTouches(st.touches);
 }
 async function poll(){
-  try{showState(await api().get_state())}catch(e){}
-  setTimeout(poll,MOCK?2000:250);
+  try{showStatus(await api().poll())}catch(e){}
+  setTimeout(poll,$("ttModal").hidden?250:60);
 }
 
-// ---------------------------------------------------------------- Aktionen
-$("kText").oninput=e=>{cfg.keys[sel].text=e.target.value;setDirty(true);buildScreen()};
-$("timeSync").onchange=e=>{cfg.time_sync=e.target.checked;setDirty(true)};
-$("autostart").onchange=e=>{cfg.autostart=e.target.checked;setDirty(true)};
-$("saveBtn").onclick=async()=>{
-  const r=await api().save(cfg); cfg=r.config; setDirty(false);
-  setMsg(r.sent?"Gespeichert und ans Deck geschickt":"Gespeichert – das Deck bekommt es, sobald es verbunden ist");
-  buildScreen();
-};
-$("testBtn").onclick=async()=>{
-  if(dirty) await api().save(cfg), setDirty(false);
-  const r=await api().test_key(sel); setMsg(r.message||(r.ok?"Ausgeführt":"Fehlgeschlagen"),!r.ok);
-};
-$("calBtn").onclick=async()=>{const r=await api().calibrate(); setMsg(r.ok?"Tippe auf dem Deck nacheinander die 4 Pfeilspitzen an":"Deck nicht verbunden",!r.ok)};
+// ---------------------------------------------------------------- Touch-Test
+let ttLast=null;
+function ttGrid(){
+  const c=$("ttCanvas").getContext("2d"),S=2; c.fillStyle="#000";c.fillRect(0,0,960,640);
+  c.strokeStyle="#334155";c.lineWidth=2;
+  for(let i=0;i<10;i++){c.beginPath();c.roundRect((KX[i%5]-38)*S,(KY[Math.floor(i/5)]-38)*S,76*S,76*S,24);c.stroke()}
+  c.beginPath();c.roundRect(9*S,201*S,462*S,110*S,20);c.stroke(); ttLast=null;
+}
+function drawTouches(pts){
+  const c=$("ttCanvas").getContext("2d"),S=2;
+  for(const p of pts){
+    if(p.up){ttLast=null;continue}
+    c.fillStyle="#3CC4D3";c.beginPath();c.arc(p.x*S,p.y*S,5,0,7);c.fill();
+    if(ttLast){c.strokeStyle="rgba(60,196,211,.5)";c.lineWidth=3;c.beginPath();c.moveTo(ttLast.x*S,ttLast.y*S);c.lineTo(p.x*S,p.y*S);c.stroke()}
+    ttLast=p;
+  }
+}
+
+// ---------------------------------------------------------------- Allgemeine Einstellungen
+function bindSettings(){
+  const bindT=(id,key)=>{$(id).checked=!!cfg[key];$(id).onchange=e=>{cfg[key]=e.target.checked;changed({now:true})}};
+  bindT("timeSync","time_sync");bindT("autostart","autostart");bindT("autoProfiles","auto_profiles");bindT("swipePages","swipe_pages");
+  $("sleepMin").value=String(cfg.sleep_min); if($("sleepMin").value!==String(cfg.sleep_min)){$("sleepMin").insertAdjacentHTML("beforeend",`<option value="${cfg.sleep_min}">nach ${cfg.sleep_min} Min.</option>`);$("sleepMin").value=String(cfg.sleep_min)}
+  $("sleepMin").onchange=e=>{cfg.sleep_min=+e.target.value;changed({now:true})};
+  $("bright").value=cfg.brightness; $("bright").oninput=e=>{cfg.brightness=+e.target.value;changed()};
+  $("calBackup").textContent=cfg.cal_backup?cfg.cal_backup.join(", "):"keine";
+}
+$("sleepNow").onclick=()=>api().deck_sleep();
+$("calBtn").onclick=async()=>{const r=await api().calibrate();setMsg(r.ok?"Tippe auf dem Deck nacheinander die 4 Pfeilspitzen an":"Deck nicht verbunden",!r.ok)};
 $("calRead").onclick=()=>api().read_calibration();
-window.addEventListener("keydown",e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="s"){e.preventDefault();$("saveBtn").click()}});
+$("calSave").onclick=async()=>{const r=await api().backup_calibration();if(r.ok){cfg.cal_backup=r.config.cal_backup;bindSettings();setMsg("Kalibrierung gesichert")}else setMsg(r.message,true)};
+$("calRestore").onclick=async()=>{const r=await api().restore_calibration();setMsg(r.ok?"Gesicherte Kalibrierung ans Deck geschickt":(r.message||"Fehlgeschlagen"),!r.ok)};
+$("ttBtn").onclick=async()=>{await api().touch_test(true);$("ttModal").hidden=false;ttGrid()};
+$("ttEnd").onclick=async()=>{await api().touch_test(false);$("ttModal").hidden=true};
+$("ttClear").onclick=ttGrid;
+$("expBtn").onclick=async()=>{await save();const r=await api().export_profile();if(r.ok)setMsg("Gespeichert: "+r.path)};
+$("impBtn").onclick=async()=>{const r=await api().import_profile();if(!r.ok){if(r.message)setMsg("Import fehlgeschlagen: "+r.message,true);return}
+  cfg=r.config;pageId=cfg.pages[0].id;sel={kind:"key",i:0};keyImgs={};bindSettings();renderPages();renderDevice();refreshKeys();refreshBar(0);renderSide();changed({now:true});setMsg("Profil importiert")};
+$("logBtn").onclick=()=>api().open_log();
+window.addEventListener("keydown",e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="s"){e.preventDefault();save()}});
 
 async function init(){
-  const st=await api().get_state();
-  cfg=st.config; $("ver").textContent="App "+st.version;
-  $("timeSync").checked=cfg.time_sync; $("autostart").checked=cfg.autostart;
-  buildScreen(); buildEditor(); showState(st); tickClock(); setInterval(tickClock,5000); poll();
+  const [st,g]=await Promise.all([api().get_state(),api().get_glyphs()]);
+  cfg=st.config; glyphs=g.glyphs; sysActions=g.system; pageId=st.page||cfg.pages[0].id; devicePage=st.page; iconEpoch=st.iconEpoch;
+  $("ver").textContent="App "+st.version;
+  bindSettings(); renderPages(); renderDevice(); renderSide(); refreshKeys(); refreshBar(0);
+  setInterval(()=>{if(!document.hidden)refreshBar(0)},5000);
+  poll();
 }
 let started=false;
 function start(){if(!started){started=true;init()}}
-if(MOCK||(window.pywebview&&window.pywebview.api)) start(); else window.addEventListener("pywebviewready",start);
+if(window.pywebview&&window.pywebview.api) start(); else window.addEventListener("pywebviewready",start);
 </script>
 </body>
 </html>

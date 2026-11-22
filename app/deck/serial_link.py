@@ -63,6 +63,27 @@ class DeckLink:
                 log.warning("Senden fehlgeschlagen: %s", e)
                 return False
 
+    def send_binary(self, header: dict, payload: bytes) -> bool:
+        """JSON-Kopf (mit n = Anzahl Bytes) und direkt danach die Bilddaten, ohne dass etwas dazwischenfunkt."""
+        header = dict(header, n=len(payload))
+        data = (json.dumps(header, separators=(",", ":"), ensure_ascii=True) + "\n").encode()
+        with self._lock:
+            if not self._ser:
+                return False
+            try:
+                self._ser.write(data)
+                view = memoryview(payload)
+                for k in range(0, len(payload), 16384):
+                    self._ser.write(view[k:k + 16384])
+                self._ser.flush()
+                return True
+            except (serial.SerialException, OSError) as e:
+                log.warning("Bild senden fehlgeschlagen: %s", e)
+                return False
+
+    def has(self, cap: str) -> bool:
+        return cap in (self.info.get("caps") or [])
+
     def send_time(self):
         return self.send({"t": "time", "local": local_epoch()})
 
@@ -87,11 +108,12 @@ class DeckLink:
 
     def status(self):
         return {"connected": self.connected, "port": self.port, "fw": self.info.get("fw"),
-                "calibrated": self.info.get("cal")}
+                "calibrated": self.info.get("cal"), "caps": self.info.get("caps") or [],
+                "light": bool(self.info.get("light"))}
 
     def _try_open(self, port):
         try:
-            s = serial.Serial(port, 115200, timeout=0.2, write_timeout=1)
+            s = serial.Serial(port, 115200, timeout=0.05, write_timeout=10)
         except (serial.SerialException, OSError) as e:
             log.debug("Port %s nicht offen: %s", port, e)
             return False
@@ -161,7 +183,7 @@ class DeckLink:
                     s = self._ser
                 if not s:
                     break
-                chunk = s.read(256)
+                chunk = s.read(s.in_waiting or 1)
             except (serial.SerialException, OSError, TypeError, AttributeError):
                 break
             buf += chunk
