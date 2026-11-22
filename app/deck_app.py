@@ -219,7 +219,7 @@ def main():
         return False
 
     app.window.events.closing += on_closing
-    webview.start(debug=("--debug" in sys.argv))
+    webview.start(debug=("--debug" in sys.argv), http_server=True)   # Seite ueber http://127.0.0.1 laden
     app.link.stop()
     if tray:
         tray.stop()
