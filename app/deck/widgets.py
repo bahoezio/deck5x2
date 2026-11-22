@@ -241,7 +241,7 @@ class NowPlaying:
                     cover = Image.open(io.BytesIO(bytes(buf))).convert("RGB")
             except Exception as e:
                 log.debug("Kein Cover: %s", e)
-        self.state.update(title=title or "", artist=artist or "", playing=playing, pos=pos, dur=dur,
+        self.state.update(title=_clean(title), artist=_clean(artist), playing=playing, pos=pos, dur=dur,
                           cover=cover, at=time.time(), app=s.source_app_user_model_id or "")
 
     def _poll_title(self):
@@ -274,6 +274,17 @@ class NowPlaying:
 
 
 # ---------------------------------------------------------------------------- Zeichnen der Bereiche
+def _clean(text: str) -> str:
+    """Emoji und Sonderzeichen entfernen, die die Schrift nicht kennt (sonst erscheinen Kaestchen)."""
+    out = []
+    for ch in text or "":
+        o = ord(ch)
+        if o >= 0x1F000 or 0x2600 <= o <= 0x27BF or 0xFE00 <= o <= 0xFE0F or o == 0x200D or 0xE000 <= o <= 0xF8FF:
+            continue
+        out.append(ch)
+    return " ".join("".join(out).split())
+
+
 def _fmt_time(sec):
     sec = int(max(0, sec))
     return f"{sec // 60}:{sec % 60:02d}"

@@ -14,7 +14,7 @@
 // Protokoll: eine JSON-Zeile pro Nachricht, Bilder folgen direkt als Bytes. Siehe docs/protokoll.md
 // ---------------------------------------------------------------------------
 
-#define FW_VERSION "0.3.0"
+#define FW_VERSION "0.3.1"
 
 // Optional: WLAN fuer die Uhr, wenn die App nicht laeuft (leer lassen = aus)
 const char* WLAN_NAME     = "";
@@ -346,7 +346,7 @@ void touchTestZeichnen() {
 }
 
 // Empfang: entweder eine JSON-Zeile oder (nach img/anim) eine feste Anzahl Bytes
-uint32_t letzterHerzschlag = 0;
+uint32_t letzterHerzschlag = 0, letzteBytes = 0;
 String eingang;
 struct Empfang { bool aktiv; char typ; int x, y, w, h, slot, frames; bool rle; size_t len, pos; uint8_t* buf; uint16_t* ms; };
 Empfang rx = {};
@@ -437,9 +437,10 @@ void nachrichtVerarbeiten(const String& zeile) {
     if (!schlaeft && !testModus) zeichneAlles();
   } else if (!strcmp(t, "img")) {
     bytesErwarten(doc, 'i');
+    letzteBytes = millis();
   } else if (!strcmp(t, "anim")) {
     if (doc["stop"] | false) animStoppen(doc["slot"] | 0);
-    else bytesErwarten(doc, 'a');
+    else { bytesErwarten(doc, 'a'); letzteBytes = millis(); }
   } else if (!strcmp(t, "calibrate")) {
     kalibrieren();
     zeichneAlles();
@@ -481,7 +482,7 @@ void eingangLesen() {
       n = Serial.read(puffer, n);
       if (rx.buf) memcpy(rx.buf + rx.pos, puffer, n);
       rx.pos += n;
-      letzterHerzschlag = millis();
+      letzterHerzschlag = letzteBytes = millis();
       if (rx.pos >= rx.len) {
         if (rx.buf) bytesFertig(); else { JsonDocument d; d["t"] = "ok"; d["for"] = "img"; d["ok"] = false; sende(d); empfangAbbrechen(); }
       }
@@ -490,6 +491,11 @@ void eingangLesen() {
     char c = Serial.read();
     if (c == '\n') { String z = eingang; eingang = ""; if (z.length()) nachrichtVerarbeiten(z); }
     else if (c != '\r' && eingang.length() < 8192) eingang += c;
+  }
+  // Bilddaten unvollstaendig (Bytes verloren)? Nach 1 s abbrechen und der App Bescheid geben
+  if (rx.aktiv && millis() - letzteBytes > 1000) {
+    empfangAbbrechen();
+    JsonDocument d; d["t"] = "ok"; d["for"] = "img"; d["ok"] = false; d["lost"] = true; sende(d);
   }
   // Ohne Herzschlag fuer 6 Sekunden gilt die App als beendet -> Deck zeichnet wieder selbst
   if (appVerbunden && millis() - letzterHerzschlag > 6000) {
@@ -521,7 +527,7 @@ void tasteMelden(int i, bool unten) {
 
 // ---------------------------------------------------------------- Start
 void setup() {
-  Serial.setRxBufferSize(16384);
+  Serial.setRxBufferSize(32768);
   Tastatur.begin();
   Medien.begin();
   USB.productName("Deck 5x2");

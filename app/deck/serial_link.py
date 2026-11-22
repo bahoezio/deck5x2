@@ -37,6 +37,9 @@ class DeckLink:
         self.info = {}
         self._on_connect_payloads = []      # Nachrichten, die nach jedem Verbinden geschickt werden
         self.time_sync = True
+        self._ack = threading.Event()
+        self._ack_ok = False
+        self._bin_lock = threading.Lock()
 
     # ------------------------------------------------------------------ oeffentlich
     def start(self):
@@ -63,23 +66,32 @@ class DeckLink:
                 log.warning("Senden fehlgeschlagen: %s", e)
                 return False
 
-    def send_binary(self, header: dict, payload: bytes) -> bool:
-        """JSON-Kopf (mit n = Anzahl Bytes) und direkt danach die Bilddaten, ohne dass etwas dazwischenfunkt."""
+    def send_binary(self, header: dict, payload: bytes, timeout: float = 4.0) -> bool:
+        """JSON-Kopf (mit n = Anzahl Bytes), direkt danach die Bilddaten. Dann auf die Bestaetigung
+        des Decks warten, bevor das naechste Bild kommt (sonst laeuft sein Empfangspuffer ueber)."""
         header = dict(header, n=len(payload))
         data = (json.dumps(header, separators=(",", ":"), ensure_ascii=True) + "\n").encode()
-        with self._lock:
-            if not self._ser:
+        with self._bin_lock:
+            self._ack.clear()
+            with self._lock:
+                if not self._ser:
+                    return False
+                try:
+                    self._ser.write(data)
+                    view = memoryview(payload)
+                    for k in range(0, len(payload), 8192):
+                        self._ser.write(view[k:k + 8192])
+                    self._ser.flush()
+                except (serial.SerialException, OSError) as e:
+                    log.warning("Bild senden fehlgeschlagen: %s", e)
+                    return False
+            if not self._ack.wait(timeout + len(payload) / 200_000):
+                log.warning("Deck hat das Bild nicht bestaetigt (%s, %d Bytes)", header.get("t"), len(payload))
+                time.sleep(1.2)                 # Deck bricht den Empfang nach 1 s selbst ab
                 return False
-            try:
-                self._ser.write(data)
-                view = memoryview(payload)
-                for k in range(0, len(payload), 16384):
-                    self._ser.write(view[k:k + 16384])
-                self._ser.flush()
-                return True
-            except (serial.SerialException, OSError) as e:
-                log.warning("Bild senden fehlgeschlagen: %s", e)
-                return False
+            if not self._ack_ok:
+                log.warning("Deck meldet Fehler beim Bild (%s)", header)
+            return self._ack_ok
 
     def has(self, cap: str) -> bool:
         return cap in (self.info.get("caps") or [])
@@ -197,6 +209,9 @@ class DeckLink:
                         self.on_key(int(msg.get("i", -1)), bool(msg.get("down")))
                     except Exception:
                         log.exception("Fehler bei Tastendruck")
+                elif msg.get("t") == "ok" and msg.get("for") in ("img", "anim"):
+                    self._ack_ok = bool(msg.get("ok", True))
+                    self._ack.set()
                 elif msg.get("t") == "hello":
                     self.info = msg
                     self.on_status(self.status())
