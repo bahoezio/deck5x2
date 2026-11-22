@@ -13,7 +13,25 @@ import threading
 import time
 from logging.handlers import RotatingFileHandler
 
-import webview
+
+
+def _unblock_files():
+    """Heruntergeladene ZIPs markiert Windows als 'aus dem Internet'. Dann weigert sich .NET,
+    die DLLs fuer das Fenster zu laden. Die Markierung im eigenen Ordner entfernen."""
+    if sys.platform != "win32" or not getattr(sys, "frozen", False):
+        return
+    base = getattr(sys, "_MEIPASS", os.path.dirname(sys.executable))
+    for root, _dirs, files in os.walk(base):
+        for name in files:
+            if name.lower().endswith((".dll", ".pyd", ".exe")):
+                try:
+                    os.remove(os.path.join(root, name) + ":Zone.Identifier")
+                except OSError:
+                    pass
+
+
+_unblock_files()
+import webview  # noqa: E402
 
 import json
 
