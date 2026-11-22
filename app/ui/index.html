@@ -161,7 +161,8 @@ footer{display:flex;align-items:center;gap:12px;padding:12px 22px;border-top:1px
 
 <script>
 // ---------------------------------------------------------------- Vorschau ohne App (Browser): Beispieldaten
-const MOCK = !window.pywebview;
+// In der App laeuft die Seite ueber http://127.0.0.1, im Browser als Datei -> nur dann Beispieldaten
+const MOCK = location.protocol === "file:";
 const mockApi = {
   _cfg:{version:1,time_sync:true,autostart:false,keys:[
     {text:"Spotify",color:"#22C55E",action:{type:"program",value:"C:\\Users\\Du\\AppData\\Roaming\\Spotify\\Spotify.exe"}},
@@ -314,7 +315,9 @@ async function init(){
   $("timeSync").checked=cfg.time_sync; $("autostart").checked=cfg.autostart;
   buildScreen(); buildEditor(); showState(st); tickClock(); setInterval(tickClock,5000); poll();
 }
-if(MOCK) init(); else window.addEventListener("pywebviewready",init);
+let started=false;
+function start(){if(!started){started=true;init()}}
+if(MOCK||(window.pywebview&&window.pywebview.api)) start(); else window.addEventListener("pywebviewready",start);
 </script>
 </body>
 </html>
