@@ -9,6 +9,8 @@ import threading
 import time
 import webbrowser
 
+from PIL import ImageChops
+
 from . import actions, config, icons, render, widgets
 from .serial_link import DeckLink
 
@@ -94,6 +96,7 @@ class Engine:
         self._hold = {}
         self._sent_keys = {}
         self._sent_zones = {}
+        self._zone_imgs = {}                            # zuletzt gesendetes Bild je Bereich (fuer Teil-Updates)
         self._sent_anims = {}
         self._need_full = True
         self._wake = threading.Event()
@@ -398,6 +401,7 @@ class Engine:
         layout_sig = json.dumps(rects)
         if self._sent_zones.get("layout") != layout_sig:
             self._sent_zones.clear()
+            self._zone_imgs.clear()
             self._send_img(render.BAR_X, render.BAR_Y, render.card_image(render.BAR_W, render.BAR_H, (0, 0, 0)))
             self._sent_zones["layout"] = layout_sig
         for zi, (z, (zx, zw)) in enumerate(zip(zones, rects)):
@@ -425,8 +429,22 @@ class Engine:
             sig = widgets.zone_signature(z, zw, self.ctx, now)
             if self._sent_zones.get(zi) != sig:
                 img = widgets.render_zone(z, zw, self.ctx, now)
-                if self._send_img(x, render.BAR_Y, img):
+                old = self._zone_imgs.get(zi) if zi in self._sent_zones else None
+                box = None
+                if old is not None and old.size == img.size:
+                    box = ImageChops.difference(old, img).getbbox()
+                    if box is None:                      # nichts hat sich sichtbar geaendert
+                        self._sent_zones[zi] = sig
+                        continue
+                # nur den geaenderten Ausschnitt schicken (z. B. Fortschrittsbalken statt ganzem Cover)
+                part = img.crop(box) if box else img
+                ox, oy = (box[0], box[1]) if box else (0, 0)
+                if self._send_img(x + ox, render.BAR_Y + oy, part):
                     self._sent_zones[zi] = sig
+                    self._zone_imgs[zi] = img
+                else:
+                    self._zone_imgs.pop(zi, None)
+                    self._sent_zones.pop(zi, None)
         # nicht mehr benoetigte Animationen anhalten
         for slot in list(self._sent_anims):
             if slot not in wanted_anims:
@@ -454,7 +472,8 @@ class Engine:
     def _worker(self):
         last_stats = 0.0
         while True:
-            self._wake.wait(0.5)
+            playing = any(z["type"] == "nowplaying" for z in self.cfg["bar"]["zones"]) and self.ctx.media.state["playing"]
+            self._wake.wait(0.2 if playing else 0.5)
             self._wake.clear()
             try:
                 if time.time() - last_stats > 2:

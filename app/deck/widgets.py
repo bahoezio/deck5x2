@@ -311,7 +311,7 @@ def zone_signature(zone: dict, w: int, ctx: Context, now: dt.datetime):
     if t == "nowplaying":
         ctx.media.want()
         st = ctx.media.state
-        prog = int(ctx.media.position() / max(1, st["dur"]) * (w // 4)) if st["dur"] else 0
+        prog = int(ctx.media.position() / max(1, st["dur"]) * w) if st["dur"] else 0     # pixelgenau
         return base + (st["title"], st["artist"], st["playing"], prog, id(st["cover"]),
                        _fmt_time(ctx.media.position()) if w >= 260 else "")
     if t == "system":
