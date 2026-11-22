@@ -1,0 +1,320 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Deck 5x2</title>
+<style>
+/* Layout: oben das Deck als Vorschau (anklickbar), rechts der Editor fuer die gewaehlte Taste, unten Geraet & Einstellungen */
+:root{
+  --bg:#0E1116; --panel:#161A21; --panel2:#1C212A; --line:#262C36; --fg:#E7EAEE; --muted:#8A94A3;
+  --accent:#3CC4D3; --accent-ink:#06191C; --ok:#4ADE80; --warn:#F5B94A; --bad:#F87171;
+  --device:#20252D; --device-edge:#2C323C; --glass:#07090C; --bar:#111827;
+  --f-ui:"Segoe UI Variable Text","Segoe UI",system-ui,-apple-system,sans-serif;
+  --f-disp:"Segoe UI Variable Display","Segoe UI",system-ui,sans-serif;
+  --f-mono:"Cascadia Mono",Consolas,ui-monospace,monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--fg);font:14px/1.45 var(--f-ui);display:flex;flex-direction:column;overflow:hidden}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+header{display:flex;align-items:center;gap:14px;padding:14px 22px;border-bottom:1px solid var(--line)}
+.logo{display:grid;grid-template-columns:repeat(3,7px);gap:2px}
+.logo i{width:7px;height:7px;border-radius:2px;background:var(--accent)}
+.logo i:nth-child(n+4){background:#5B6574}
+header h1{font:600 17px var(--f-disp);margin:0;letter-spacing:.01em}
+header .ver{color:var(--muted);font-size:12px}
+.status{margin-left:auto;display:flex;align-items:center;gap:8px;background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:5px 12px 5px 10px;font-size:13px}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--bad)}
+.status.on .dot{background:var(--ok);box-shadow:0 0 0 3px rgba(74,222,128,.15)}
+
+main{flex:1;display:grid;grid-template-columns:minmax(0,1fr) 380px;min-height:0}
+.stage{padding:26px 28px;overflow:auto;display:flex;flex-direction:column;gap:22px;min-width:0}
+.side{border-left:1px solid var(--line);background:var(--panel);overflow:auto;padding:22px;display:flex;flex-direction:column;gap:18px}
+
+/* Deck-Vorschau, gleiche Proportionen wie das echte Display (480 x 320) */
+.device{align-self:center;background:var(--device);border:1px solid var(--device-edge);border-radius:22px;padding:18px;width:min(640px,100%);box-shadow:0 30px 60px -30px rgba(0,0,0,.8)}
+.screen{position:relative;aspect-ratio:3/2;background:var(--glass);border-radius:6px;overflow:hidden;container-type:inline-size}
+.key{position:absolute;width:15.83%;height:23.75%;border-radius:2.5cqw;border:0;display:grid;place-items:center;
+  color:#fff;font:700 2.7cqw var(--f-ui);text-align:center;padding:0 .8cqw;line-height:1.15;transition:transform .08s,box-shadow .12s;overflow:hidden;word-break:normal;overflow-wrap:normal}
+.key:hover{transform:translateY(-1px)}
+.key.sel{box-shadow:0 0 0 .5cqw var(--glass),0 0 0 1cqw var(--accent)}
+.key.hit{background:#fff!important;color:#000}
+.bar{position:absolute;left:1.875%;top:62.8%;width:96.25%;height:34.4%;background:var(--bar);border-radius:2cqw;display:flex;align-items:center;justify-content:space-between;padding:0 5cqw}
+.bar .clock{font:700 8cqw var(--f-disp);letter-spacing:.01em;font-variant-numeric:tabular-nums}
+.bar .date{text-align:right;color:#94A3B8;font-size:3.2cqw;line-height:1.35}
+.hint{align-self:center;color:var(--muted);font-size:13px;margin:-8px 0 0}
+
+h2{font:600 12px var(--f-ui);text-transform:uppercase;letter-spacing:.09em;color:var(--muted);margin:0 0 10px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:16px}
+.row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 0}
+.row+.row{border-top:1px solid var(--line)}
+.row small{display:block;color:var(--muted);font-size:12px}
+
+label.f{display:flex;flex-direction:column;gap:6px;font-size:13px;color:var(--muted)}
+input[type=text],select,textarea{background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:9px 11px;color:var(--fg);width:100%;min-width:0}
+textarea{resize:vertical;min-height:70px}
+input[type=text]:focus,select:focus,textarea:focus{border-color:var(--accent);outline:none}
+.inline{display:flex;gap:8px}
+.inline>input{flex:1}
+
+.swatches{display:grid;grid-template-columns:repeat(8,1fr);gap:6px}
+.sw{aspect-ratio:1;border-radius:7px;border:2px solid transparent}
+.sw.on{border-color:var(--fg)}
+.sw.custom{position:relative;background:conic-gradient(#f43f5e,#f59e0b,#22c55e,#06b6d4,#6366f1,#d946ef,#f43f5e);overflow:hidden}
+.sw.custom input{position:absolute;inset:0;opacity:0;cursor:pointer}
+
+.seg{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.seg button{background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:8px 6px;font-size:13px;color:var(--fg)}
+.seg button.on{background:rgba(60,196,211,.14);border-color:var(--accent);color:var(--accent)}
+
+.btn{background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:9px 14px;color:var(--fg);white-space:nowrap}
+.btn:hover{border-color:#3A4250}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:600}
+.btn.rec{border-color:var(--warn);color:var(--warn)}
+.btn:disabled{opacity:.45;cursor:default}
+
+.toggle{position:relative;width:40px;height:22px;flex:none}
+.toggle input{position:absolute;inset:0;opacity:0;margin:0;cursor:pointer}
+.toggle span{position:absolute;inset:0;border-radius:99px;background:#343B47;transition:.15s;pointer-events:none}
+.toggle span::after{content:"";position:absolute;left:3px;top:3px;width:16px;height:16px;border-radius:50%;background:#fff;transition:.15s}
+.toggle input:checked+span{background:var(--accent)}
+.toggle input:checked+span::after{transform:translateX(18px)}
+
+.keytitle{display:flex;align-items:baseline;gap:10px}
+.keytitle b{font:600 20px var(--f-disp)}
+.keytitle span{color:var(--muted);font-size:13px}
+.help{color:var(--muted);font-size:12px;margin:0}
+.mono{font-family:var(--f-mono);font-size:12px;color:var(--muted);word-break:break-all}
+
+footer{display:flex;align-items:center;gap:12px;padding:12px 22px;border-top:1px solid var(--line);background:var(--panel)}
+#msg{color:var(--muted);font-size:13px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#msg.warn{color:var(--warn)}
+.dirty{color:var(--warn);font-size:13px}
+@media (max-width:860px){main{grid-template-columns:1fr}.side{border-left:0;border-top:1px solid var(--line)}body{overflow:auto}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+  <h1>Deck 5x2</h1><span class="ver" id="ver"></span>
+  <div class="status" id="status"><span class="dot"></span><span id="statusText">Suche Deck …</span></div>
+</header>
+
+<main>
+  <section class="stage">
+    <div class="device" aria-label="Vorschau des Decks">
+      <div class="screen" id="screen">
+        <div class="bar"><div class="clock" id="clock">--:--</div><div class="date" id="date"></div></div>
+      </div>
+    </div>
+    <p class="hint">Klick auf eine Taste, um sie einzustellen. Drückst du am Deck, leuchtet sie hier mit auf.</p>
+
+    <div class="grid2">
+      <div class="card">
+        <h2>Allgemein</h2>
+        <div class="row"><div>Uhrzeit ans Deck senden<small>Die Leiste zeigt die Uhrzeit dieses PCs</small></div>
+          <label class="toggle"><input type="checkbox" id="timeSync"><span></span></label></div>
+        <div class="row"><div>Mit Windows starten<small>Läuft dann unsichtbar im Infobereich</small></div>
+          <label class="toggle"><input type="checkbox" id="autostart"><span></span></label></div>
+      </div>
+      <div class="card">
+        <h2>Touch</h2>
+        <div class="row"><div>Touch kalibrieren<small>Auf dem Deck erscheinen 4 Pfeile zum Antippen</small></div>
+          <button class="btn" id="calBtn">Starten</button></div>
+        <div class="row"><div style="min-width:0">Aktuelle Werte<small class="mono" id="calVals">noch nicht gelesen</small></div>
+          <button class="btn" id="calRead">Lesen</button></div>
+      </div>
+    </div>
+  </section>
+
+  <aside class="side" id="editor">
+    <div class="keytitle"><b id="keyName">Taste 1</b><span id="keyPos"></span></div>
+    <label class="f">Beschriftung
+      <input type="text" id="kText" maxlength="23" placeholder="z. B. Spotify">
+    </label>
+    <p class="help" id="textHint">Umlaute werden auf dem Deck als ae, oe, ue angezeigt.</p>
+    <div class="f" style="display:flex;flex-direction:column;gap:8px">
+      <span style="font-size:13px;color:var(--muted)">Farbe</span>
+      <div class="swatches" id="swatches"></div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <span style="font-size:13px;color:var(--muted)">Was soll die Taste tun?</span>
+      <div class="seg" id="types"></div>
+    </div>
+    <div id="valueBox"></div>
+    <div class="inline"><button class="btn" id="testBtn">Jetzt testen</button></div>
+  </aside>
+</main>
+
+<footer>
+  <span id="msg"></span>
+  <span class="dirty" id="dirty" hidden>Nicht gespeichert</span>
+  <button class="btn primary" id="saveBtn">Speichern</button>
+</footer>
+
+<script>
+// ---------------------------------------------------------------- Vorschau ohne App (Browser): Beispieldaten
+const MOCK = !window.pywebview;
+const mockApi = {
+  _cfg:{version:1,time_sync:true,autostart:false,keys:[
+    {text:"Spotify",color:"#22C55E",action:{type:"program",value:"C:\\Users\\Du\\AppData\\Roaming\\Spotify\\Spotify.exe"}},
+    {text:"Discord",color:"#6366F1",action:{type:"program",value:"Discord"}},
+    {text:"Mikro aus",color:"#E11D48",action:{type:"hotkey",value:"Strg+Umschalt+M"}},
+    {text:"YouTube",color:"#DC2626",action:{type:"website",value:"youtube.com"}},
+    {text:"Screenshot",color:"#8B5CF6",action:{type:"hotkey",value:"Win+Umschalt+S"}},
+    {text:"F18",color:"#06B6D4",action:{type:"none",value:""}},
+    {text:"Mail",color:"#F97316",action:{type:"text",value:"Viele Grüße\nDein Name"}},
+    {text:"Play",color:"#1E293B",action:{type:"media",value:"play_pause"}},
+    {text:"Leiser",color:"#1E293B",action:{type:"media",value:"volume_down"}},
+    {text:"Lauter",color:"#1E293B",action:{type:"media",value:"volume_up"}}]},
+  async get_state(){return {config:this._cfg,status:{connected:true,port:"COM5",fw:"0.2.0",calibrated:true},
+    lastKey:{i:-1,at:0},message:"",calValues:null,version:"Vorschau"}},
+  async save(c){this._cfg=c;return {ok:true,sent:true,config:c}},
+  async test_key(){return {ok:true,message:"Vorschau: Aktion würde jetzt ausgeführt"}},
+  async calibrate(){return {ok:true}}, async read_calibration(){return {ok:true}},
+  async choose_program(){return "C:\\Programme\\Beispiel\\Programm.exe"}
+};
+const api = () => MOCK ? mockApi : window.pywebview.api;
+
+// ---------------------------------------------------------------- Zustand
+const COLORS=["#3B82F6","#E11D48","#22C55E","#F59E0B","#8B5CF6","#06B6D4","#F97316","#EC4899","#84CC16","#EAB308","#DC2626","#6366F1","#14B8A6","#64748B","#1E293B"];
+const TYPES=[["none","Nichts"],["program","Programm"],["website","Webseite"],["hotkey","Tastenkürzel"],["media","Medien"],["text","Text tippen"]];
+const MEDIA=[["play_pause","Play / Pause"],["next","Nächster Titel"],["previous","Vorheriger Titel"],["volume_up","Lauter"],["volume_down","Leiser"],["mute","Stumm"]];
+// Positionen wie im Gehaeuse (Pixel auf 480 x 320)
+const KX=[48,144,240,336,432], KY=[48,144], KS=76;
+let cfg=null, sel=0, dirty=false, lastHit=0;
+const $=id=>document.getElementById(id);
+
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
+function setDirty(v){dirty=v;$("dirty").hidden=!v}
+function setMsg(t,warn){const m=$("msg");m.textContent=t||"";m.className=warn?"warn":""}
+
+// ---------------------------------------------------------------- Vorschau
+function buildScreen(){
+  const s=$("screen");
+  s.querySelectorAll(".key").forEach(e=>e.remove());
+  cfg.keys.forEach((k,i)=>{
+    const b=document.createElement("button");
+    b.className="key"+(i===sel?" sel":"");
+    b.style.left=((KX[i%5]-KS/2)/480*100)+"%";
+    b.style.top=((KY[Math.floor(i/5)]-KS/2)/320*100)+"%";
+    b.style.background=k.color;
+    b.textContent=k.text;
+    b.setAttribute("aria-label",`Taste ${i+1}: ${k.text}`);
+    b.onclick=()=>{sel=i;buildScreen();buildEditor()};
+    s.appendChild(b);
+    // zu lange Woerter verkleinern statt umbrechen (wie auf dem Deck)
+    let fs=2.7; while(b.scrollWidth>b.clientWidth+1&&fs>1.6){fs-=.1;b.style.fontSize=fs+'cqw'}
+  });
+}
+function tickClock(){
+  const d=new Date(), wd=["Sonntag","Montag","Dienstag","Mittwoch","Donnerstag","Freitag","Samstag"][d.getDay()];
+  $("clock").textContent=d.toLocaleTimeString("de-DE",{hour:"2-digit",minute:"2-digit"});
+  $("date").innerHTML=`${wd}<br>${d.toLocaleDateString("de-DE",{day:"2-digit",month:"2-digit",year:"numeric"})}`;
+}
+
+// ---------------------------------------------------------------- Editor
+function buildEditor(){
+  const k=cfg.keys[sel];
+  $("keyName").textContent=`Taste ${sel+1}`;
+  $("keyPos").textContent=`Reihe ${Math.floor(sel/5)+1}, Spalte ${sel%5+1}`;
+  $("kText").value=k.text;
+  $("swatches").innerHTML=COLORS.map(c=>`<button class="sw${c===k.color?" on":""}" style="background:${c}" data-c="${c}" aria-label="Farbe ${c}"></button>`).join("")
+    +`<label class="sw custom${COLORS.includes(k.color)?"":" on"}" aria-label="Eigene Farbe"><input type="color" id="kColor" value="${k.color}"></label>`;
+  $("swatches").querySelectorAll("button").forEach(b=>b.onclick=()=>{k.color=b.dataset.c;setDirty(true);buildScreen();buildEditor()});
+  $("kColor").oninput=e=>{k.color=e.target.value.toUpperCase();setDirty(true);buildScreen()};
+  $("kColor").onchange=()=>buildEditor();
+  $("types").innerHTML=TYPES.map(([t,l])=>`<button class="${k.action.type===t?"on":""}" data-t="${t}">${l}</button>`).join("");
+  $("types").querySelectorAll("button").forEach(b=>b.onclick=()=>{
+    if(k.action.type!==b.dataset.t){k.action={type:b.dataset.t,value:b.dataset.t==="media"?"play_pause":""};setDirty(true);buildEditor()}});
+  buildValue();
+}
+function buildValue(){
+  const k=cfg.keys[sel], a=k.action, box=$("valueBox");
+  const help={program:"Programm, Verknüpfung oder Ordner, der gestartet wird.",website:"Wird im Standardbrowser geöffnet.",
+    hotkey:"Klick auf „Aufnehmen“ und drück die Tasten, z. B. Strg + Umschalt + M.",text:"Wird getippt, als hättest du es selbst eingegeben."}[a.type]||"";
+  if(a.type==="none"){box.innerHTML=`<p class="help">Ohne Aktion. Ist die App beendet, sendet die Taste trotzdem F${13+sel}.</p>`;return}
+  if(a.type==="media"){
+    box.innerHTML=`<label class="f">Funktion<select id="kVal">${MEDIA.map(([v,l])=>`<option value="${v}"${a.value===v?" selected":""}>${l}</option>`).join("")}</select></label>`;
+  }else if(a.type==="text"){
+    box.innerHTML=`<label class="f">Text<textarea id="kVal" placeholder="Text, der getippt wird">${esc(a.value)}</textarea></label><p class="help">${help}</p>`;
+  }else{
+    const ph={program:"C:\\Pfad\\zum\\Programm.exe",website:"z. B. youtube.com",hotkey:"z. B. Strg+Umschalt+M"}[a.type];
+    const extra=a.type==="program"?`<button class="btn" id="pick">Auswählen …</button>`:a.type==="hotkey"?`<button class="btn" id="rec">Aufnehmen</button>`:"";
+    box.innerHTML=`<label class="f">${{program:"Programm",website:"Adresse",hotkey:"Tastenkürzel"}[a.type]}
+      <span class="inline"><input type="text" id="kVal" value="${esc(a.value)}" placeholder="${ph}">${extra}</span></label><p class="help">${help}</p>`;
+  }
+  const v=$("kVal"); v.oninput=v.onchange=()=>{a.value=v.value;setDirty(true)};
+  if($("pick")) $("pick").onclick=async()=>{const p=await api().choose_program(); if(p){a.value=p;v.value=p;setDirty(true);
+      if(/^F\d+$/.test(k.text)){k.text=p.split(/[\\/]/).pop().replace(/\.(exe|lnk|bat)$/i,"").slice(0,23);$("kText").value=k.text;buildScreen()}}};
+  if($("rec")) $("rec").onclick=()=>recordHotkey(v,a);
+}
+function recordHotkey(input,a){
+  const btn=$("rec"); btn.textContent="Drück jetzt …"; btn.classList.add("rec");
+  const names={Control:"Strg",Shift:"Umschalt",Alt:"Alt",AltGraph:"AltGr",Meta:"Win"," ":"Leertaste",Enter:"Enter",Escape:"Esc",Tab:"Tab",
+    Backspace:"Backspace",Delete:"Entf",Insert:"Einfg",Home:"Pos1",End:"Ende",PageUp:"BildAuf",PageDown:"BildAb",
+    ArrowUp:"Up",ArrowDown:"Down",ArrowLeft:"Left",ArrowRight:"Right",PrintScreen:"Druck"};
+  const handler=e=>{
+    e.preventDefault();
+    if(["Control","Shift","Alt","Meta","AltGraph"].includes(e.key))return;   // auf die eigentliche Taste warten
+    const parts=[]; if(e.ctrlKey)parts.push("Strg"); if(e.shiftKey)parts.push("Umschalt"); if(e.altKey)parts.push("Alt"); if(e.metaKey)parts.push("Win");
+    let k=names[e.key]||(/^F\d{1,2}$/.test(e.key)?e.key:(e.code.startsWith("Key")?e.code.slice(3):e.code.startsWith("Digit")?e.code.slice(5):e.key.toUpperCase()));
+    parts.push(k); a.value=parts.join("+"); input.value=a.value; setDirty(true);
+    window.removeEventListener("keydown",handler,true); btn.textContent="Aufnehmen"; btn.classList.remove("rec");
+  };
+  window.addEventListener("keydown",handler,true);
+}
+
+// ---------------------------------------------------------------- Status vom Deck
+function showState(st){
+  const s=st.status, el=$("status");
+  el.classList.toggle("on",!!s.connected);
+  $("statusText").textContent=s.connected?`Deck verbunden · ${s.port}${s.fw?" · Firmware "+s.fw:""}`:"Deck nicht gefunden – USB-Kabel an „USB“ stecken";
+  $("calBtn").disabled=$("calRead").disabled=!s.connected;
+  if(st.calValues)$("calVals").textContent=st.calValues.join(", ");
+  if(st.message)setMsg(st.message,st.message.startsWith("⚠"));
+  if(st.lastKey && st.lastKey.at>lastHit){
+    lastHit=st.lastKey.at;
+    const b=$("screen").querySelectorAll(".key")[st.lastKey.i];
+    if(b){b.classList.add("hit");setTimeout(()=>b.classList.remove("hit"),220)}
+  }
+}
+async function poll(){
+  try{showState(await api().get_state())}catch(e){}
+  setTimeout(poll,MOCK?2000:250);
+}
+
+// ---------------------------------------------------------------- Aktionen
+$("kText").oninput=e=>{cfg.keys[sel].text=e.target.value;setDirty(true);buildScreen()};
+$("timeSync").onchange=e=>{cfg.time_sync=e.target.checked;setDirty(true)};
+$("autostart").onchange=e=>{cfg.autostart=e.target.checked;setDirty(true)};
+$("saveBtn").onclick=async()=>{
+  const r=await api().save(cfg); cfg=r.config; setDirty(false);
+  setMsg(r.sent?"Gespeichert und ans Deck geschickt":"Gespeichert – das Deck bekommt es, sobald es verbunden ist");
+  buildScreen();
+};
+$("testBtn").onclick=async()=>{
+  if(dirty) await api().save(cfg), setDirty(false);
+  const r=await api().test_key(sel); setMsg(r.message||(r.ok?"Ausgeführt":"Fehlgeschlagen"),!r.ok);
+};
+$("calBtn").onclick=async()=>{const r=await api().calibrate(); setMsg(r.ok?"Tippe auf dem Deck nacheinander die 4 Pfeilspitzen an":"Deck nicht verbunden",!r.ok)};
+$("calRead").onclick=()=>api().read_calibration();
+window.addEventListener("keydown",e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="s"){e.preventDefault();$("saveBtn").click()}});
+
+async function init(){
+  const st=await api().get_state();
+  cfg=st.config; $("ver").textContent="App "+st.version;
+  $("timeSync").checked=cfg.time_sync; $("autostart").checked=cfg.autostart;
+  buildScreen(); buildEditor(); showState(st); tickClock(); setInterval(tickClock,5000); poll();
+}
+if(MOCK) init(); else window.addEventListener("pywebviewready",init);
+</script>
+</body>
+</html>
