@@ -99,6 +99,7 @@ class Engine:
         self._zone_imgs = {}                            # zuletzt gesendetes Bild je Bereich (fuer Teil-Updates)
         self._sent_anims = {}
         self._need_full = True
+        self._transition = None
         self._wake = threading.Event()
         self.link = DeckLink(on_key=self.on_key, on_status=self.on_status, on_message=self.on_message)
         self.link.time_sync = self.cfg["time_sync"]
@@ -129,7 +130,8 @@ class Engine:
             if manual:
                 self.profile_from = None
                 self.profile_page = None
-            self._sent_keys.clear()
+            recent = time.time() - self.last_key["at"] < 2.0
+            self._transition = {"from": self.last_key["i"] if recent else -1}
         self.poke()
 
     def page_action(self, value: str):
@@ -156,10 +158,10 @@ class Engine:
 
     def key_look(self, page: dict, i: int):
         """Aussehen einer Taste im aktuellen Zustand (Umschalt-Taste, Live-Wert)."""
-        k = page["keys"][i]
+        k, owner = config.effective_key(self.cfg, page, i)
         look = {kk: k[kk] for kk in ("text", "color", "text_color", "show_text", "icon", "icon_mode")}
         action = k["action"]
-        if k["toggle"]["enabled"] and self.toggles.get((page["id"], i)):
+        if k["toggle"]["enabled"] and self.toggles.get((owner, i)):
             tg = k["toggle"]
             look["text"] = tg["text"] or look["text"]
             look["color"] = tg["color"]
@@ -168,7 +170,7 @@ class Engine:
             if tg["action"]["type"] != "none":
                 action = tg["action"]
         if k["live"] != "none":
-            txt = widgets.live_text(k["live"], self.ctx, self.key_state(page["id"], i), dt.datetime.now())
+            txt = widgets.live_text(k["live"], self.ctx, self.key_state(owner, i), dt.datetime.now())
             if txt is not None:
                 if k["live"] in ("counter", "stopwatch") and look["text"]:
                     txt = f"{look['text']} {txt}" if k["live"] == "counter" else txt
@@ -180,7 +182,7 @@ class Engine:
         if not (0 <= i < config.NUM_KEYS):
             return
         page = self.page
-        k = page["keys"][i]
+        k, _ = config.effective_key(self.cfg, page, i)
         if down:
             self.last_key = {"i": i, "at": time.time(), "page": page["id"]}
             if k["hold"]["type"] != "none" or k["live"] == "stopwatch":
@@ -198,20 +200,20 @@ class Engine:
     def _fire_hold(self, pid, i):
         self._hold.pop(i, None)
         page = config.page_by_id(self.cfg, pid)
-        k = page["keys"][i]
+        k, owner = config.effective_key(self.cfg, page, i)
         if k["live"] == "stopwatch" and k["hold"]["type"] == "none":
-            self.live[(pid, i)] = {"count": 0, "elapsed": 0.0, "started": None}    # lang druecken = zuruecksetzen
+            self.live[(owner, i)] = {"count": 0, "elapsed": 0.0, "started": None}    # lang druecken = zuruecksetzen
             self.poke()
             return
         self.run(k["hold"], f"Taste {i + 1} (lang)")
 
     def trigger(self, page: dict, i: int):
-        k = page["keys"][i]
+        k, owner = config.effective_key(self.cfg, page, i)
         _, action = self.key_look(page, i)
         if k["toggle"]["enabled"]:
-            key = (page["id"], i)
+            key = (owner, i)
             self.toggles[key] = not self.toggles.get(key, False)
-        st = self.key_state(page["id"], i)
+        st = self.key_state(owner, i)
         if k["live"] == "counter":
             st["count"] += 1
         elif k["live"] == "stopwatch":
@@ -313,7 +315,8 @@ class Engine:
         return sent
 
     def _send_device_cfg(self):
-        self.link.send({"t": "cfg", "sleep_s": int(self.cfg["sleep_min"]) * 60, "bright": int(self.cfg["brightness"])})
+        self.link.send({"t": "cfg", "sleep_s": int(self.cfg["sleep_min"]) * 60, "bright": int(self.cfg["brightness"]),
+                        "fx": bool(self.cfg.get("fx", True))})
 
     # ------------------------------------------------------------------ Bilder
     def poke(self):
@@ -377,6 +380,11 @@ class Engine:
             page = copy.deepcopy(self.page)
         wanted_anims = {}
         free_slots = list(KEY_ANIM_SLOTS)
+        # Seitenwechsel mit Effekt: das Deck sammelt die neuen Tasten und zeigt sie dann als Welle
+        trans, self._transition = self._transition, None
+        use_fx = trans is not None and self.cfg.get("fx", True) and self.link.has("fx")
+        if use_fx:
+            self.link.send({"t": "page"})
         # Tasten
         for i in range(config.NUM_KEYS):
             look, action = self.key_look(page, i)
@@ -395,6 +403,9 @@ class Engine:
                 img = render.render_key(look, icons.get_icon(look["icon"], action, on_ready=self._icon_ready), 1)
                 if self._send_img(x, y, img):
                     self._sent_keys[i] = sig
+        if use_fx:
+            style = {"wave": 0, "sweep": 1, "pop": 2}.get(self.cfg.get("fx_style", "wave"), 0)
+            self.link.send_wait({"t": "show", "from": trans["from"], "style": style}, 3.0)
         # Leiste
         zones = self.cfg["bar"]["zones"]
         rects = render.zone_rects([z["w"] for z in zones])

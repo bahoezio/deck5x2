@@ -93,6 +93,14 @@ class DeckLink:
                 log.warning("Deck meldet Fehler beim Bild (%s)", header)
             return self._ack_ok
 
+    def send_wait(self, msg: dict, timeout: float = 3.0) -> bool:
+        """Nachricht senden und auf das "ok" des Decks warten (z. B. bis eine Animation fertig ist)."""
+        with self._bin_lock:
+            self._ack.clear()
+            if not self.send(msg):
+                return False
+            return self._ack.wait(timeout)
+
     def has(self, cap: str) -> bool:
         return cap in (self.info.get("caps") or [])
 
@@ -209,7 +217,7 @@ class DeckLink:
                         self.on_key(int(msg.get("i", -1)), bool(msg.get("down")))
                     except Exception:
                         log.exception("Fehler bei Tastendruck")
-                elif msg.get("t") == "ok" and msg.get("for") in ("img", "anim"):
+                elif msg.get("t") == "ok" and msg.get("for") in ("img", "anim", "show"):
                     self._ack_ok = bool(msg.get("ok", True))
                     self._ack.set()
                 elif msg.get("t") == "hello":

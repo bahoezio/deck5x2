@@ -65,6 +65,8 @@ DEFAULT_CONFIG = {
     "brightness": 100,
     "auto_profiles": True,
     "swipe_pages": True,
+    "fx": True,
+    "fx_style": "wave",
     "cal_backup": None,
 }
 
@@ -170,7 +172,9 @@ def normalize(cfg: dict) -> dict:
     out = copy.deepcopy(DEFAULT_CONFIG)
     if not isinstance(cfg, dict):
         return out
-    for k in ("time_sync", "autostart", "auto_profiles", "swipe_pages"):
+    if cfg.get("fx_style") in ("wave", "sweep", "pop"):
+        out["fx_style"] = cfg["fx_style"]
+    for k in ("time_sync", "autostart", "auto_profiles", "swipe_pages", "fx"):
         if isinstance(cfg.get(k), bool):
             out[k] = cfg[k]
     for k, lo, hi in (("sleep_min", 0, 240), ("brightness", 5, 100)):
@@ -200,7 +204,8 @@ def normalize(cfg: dict) -> dict:
                 fb = blank_key(i)
                 keys.append(_key(keys_src[i], fb) if i < len(keys_src) else fb)
             apps = [str(a).lower()[:80] for a in p.get("apps", []) if isinstance(a, str) and a.strip()][:10]
-            pages.append({"id": pid, "name": str(p.get("name") or "Seite")[:30], "apps": apps, "keys": keys})
+            pages.append({"id": pid, "name": str(p.get("name") or "Seite")[:30], "apps": apps, "keys": keys,
+                          "inherit": bool(p.get("inherit", False))})
         if pages:
             pages[0]["id"] = pages[0]["id"] or "home"
             out["pages"] = pages
@@ -228,6 +233,21 @@ def save(cfg: dict) -> dict:
         json.dump(cfg, f, ensure_ascii=False, indent=2)
     os.replace(tmp, config_path())
     return cfg
+
+
+def is_blank(k: dict) -> bool:
+    """Leere Taste: keine Beschriftung, kein Icon, keine Aktion."""
+    return (not k["text"].strip() and k["icon"]["kind"] == "none" and k["action"]["type"] == "none"
+            and k["hold"]["type"] == "none" and k["live"] == "none" and not k["toggle"]["enabled"])
+
+
+def effective_key(cfg: dict, page: dict, i: int):
+    """Taste, wie sie auf einer Seite wirkt: leere Tasten einer Seite mit 'inherit' kommen von der Hauptseite."""
+    k = page["keys"][i]
+    main = cfg["pages"][0]
+    if page.get("inherit") and page is not main and page["id"] != main["id"] and is_blank(k):
+        return main["keys"][i], main["id"]
+    return k, page["id"]
 
 
 def page_by_id(cfg: dict, pid: str):

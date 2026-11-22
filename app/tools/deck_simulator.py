@@ -67,7 +67,7 @@ class Sim:
             self.log.append(t)
             if t == "hello?":
                 self.send({"t": "hello", "fw": "0.3.0", "device": "Deck 5x2", "keys": 10, "cal": True,
-                           "caps": ["img", "anim", "rle", "touch", "sleep"]})
+                           "caps": ["img", "anim", "rle", "touch", "sleep", "fx"]})
             elif t == "screen":
                 self.app = m.get("app")
             elif t in ("img", "anim") and "n" in m:
@@ -84,6 +84,8 @@ class Sim:
                 self.send({"t": "ok", "for": t, "ok": True})
             elif t == "anim" and m.get("stop"):
                 self.anims.pop(m.get("slot"), None)
+            elif t == "show":
+                self.send({"t": "ok", "for": "show", "ok": True})
             elif t == "getcal":
                 self.send({"t": "cal", "v": [300, 3900, 310, 300, 3890, 3880, 3900, 310]})
 

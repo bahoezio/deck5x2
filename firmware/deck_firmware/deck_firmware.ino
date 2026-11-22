@@ -14,7 +14,7 @@
 // Protokoll: eine JSON-Zeile pro Nachricht, Bilder folgen direkt als Bytes. Siehe docs/protokoll.md
 // ---------------------------------------------------------------------------
 
-#define FW_VERSION "0.3.1"
+#define FW_VERSION "0.4.0"
 
 // Optional: WLAN fuer die Uhr, wenn die App nicht laeuft (leer lassen = aus)
 const char* WLAN_NAME     = "";
@@ -209,8 +209,12 @@ void zeichneAlles() {
   zeichneLeisteSelbst(true);
 }
 
+bool effekte = true;                     // Animationen (Taste drueckt sich ein, Wellen beim Seitenwechsel)
+void druckEffekt(int i, bool runter);     // weiter unten
+
 void zeichneTaste(int i, bool gedrueckt) {
   if (!appBild) { zeichneTasteSelbst(i, gedrueckt); return; }
+  if (effekte) { druckEffekt(i, gedrueckt); return; }
   int x = KX[i % 5] - KEY / 2, y = KY[i / 5] - KEY / 2;
   bereichZeigen(x, y, KEY, KEY);
   if (gedrueckt) {                       // weisser Rahmen als Rueckmeldung
@@ -264,6 +268,97 @@ void inBildspeicher(int x, int y, int w, int h, const uint8_t* px) {
   for (int r = 0; r < h; r++) memcpy(fb + ((size_t)(y + r) * B + x) * 2, px + (size_t)r * w * 2, (size_t)w * 2);
 }
 
+// ---------------------------------------------------------------- Effekte
+LGFX_Sprite quelle(&lcd);     // eine Taste (76x76), wird gezoomt
+LGFX_Sprite rahmen(&lcd);     // Zwischenbild ohne Flackern
+uint8_t* altTasten = nullptr; // Tasten vor dem Seitenwechsel
+bool sammeln = false;         // neue Seite kommt: Tasten erst speichern, dann mit Effekt zeigen
+uint32_t sammelnSeit = 0;
+uint16_t neueTasten = 0;      // Bitmaske: welche Tasten haben ein neues Bild bekommen
+
+void tasteKopieren(int i, const uint8_t* aus, bool ausSchnappschuss) {
+  uint8_t* ziel = (uint8_t*)quelle.getBuffer();
+  int x = KX[i % 5] - KEY / 2, y = KY[i / 5] - KEY / 2;
+  for (int r = 0; r < KEY; r++) {
+    const uint8_t* q = ausSchnappschuss ? aus + ((size_t)i * KEY * KEY + (size_t)r * KEY) * 2
+                                        : aus + ((size_t)(y + r) * B + x) * 2;
+    memcpy(ziel + (size_t)r * KEY * 2, q, KEY * 2);
+  }
+}
+
+void zeichneGezoomt(int i, float z) {
+  int x = KX[i % 5] - KEY / 2, y = KY[i / 5] - KEY / 2;
+  rahmen.fillScreen(TFT_BLACK);
+  if (z > 0.03f) quelle.pushRotateZoom(&rahmen, KEY / 2.0f - 0.5f, KEY / 2.0f - 0.5f, 0, z, z);
+  rahmen.pushSprite(x, y);
+}
+
+void druckEffekt(int i, bool runter) {
+  tasteKopieren(i, (const uint8_t*)bildspeicher.getBuffer(), false);
+  static const float rein[] = {0.96f, 0.92f, 0.89f};
+  static const float raus[] = {0.95f, 1.03f, 1.05f, 1.02f};
+  if (runter) { for (float z : rein) { zeichneGezoomt(i, z); delay(6); } }
+  else {
+    for (float z : raus) { zeichneGezoomt(i, z); delay(10); }
+    int x = KX[i % 5] - KEY / 2, y = KY[i / 5] - KEY / 2;
+    bereichZeigen(x, y, KEY, KEY);
+  }
+}
+
+void sammelnStarten() {
+  if (!altTasten) altTasten = (uint8_t*)heap_caps_malloc((size_t)10 * KEY * KEY * 2, MALLOC_CAP_SPIRAM);
+  if (!altTasten) return;
+  uint8_t* fb = (uint8_t*)bildspeicher.getBuffer();
+  for (int i = 0; i < 10; i++) {
+    int x = KX[i % 5] - KEY / 2, y = KY[i / 5] - KEY / 2;
+    for (int r = 0; r < KEY; r++)
+      memcpy(altTasten + ((size_t)i * KEY * KEY + (size_t)r * KEY) * 2, fb + ((size_t)(y + r) * B + x) * 2, KEY * 2);
+  }
+  sammeln = true; sammelnSeit = millis(); neueTasten = 0;
+}
+
+float sanft(float p) { return 1 - (1 - p) * (1 - p) * (1 - p); }                     // langsam auslaufen
+float federnd(float p) { float c = 1.9f; p -= 1; return 1 + (c + 1) * p * p * p + c * p * p; }   // leicht ueberschwingen
+
+// stil: 0 = Welle vom gedrueckten Knopf, 1 = von links nach rechts, 2 = alle gleichzeitig
+void uebergangZeigen(int von, int stil) {
+  sammeln = false;
+  if (!neueTasten || !appBild || schlaeft || testModus) { if (appBild && !schlaeft && !testModus) bereichZeigen(0, 0, B, BAR_Y); return; }
+  int start[10];
+  int vc = von >= 0 ? von % 5 : 0, vr = von >= 0 ? von / 5 : 0;
+  for (int i = 0; i < 10; i++) {
+    int dc = abs(i % 5 - vc), dr = abs(i / 5 - vr);
+    float d = stil == 1 ? (i % 5) + (i / 5) * 0.5f : stil == 2 ? 0 : sqrtf(dc * dc + dr * dr);
+    start[i] = (int)(d * 55);
+  }
+  const int AUS = 80, EIN = 170;
+  uint16_t fertig = 0;
+  uint32_t t0 = millis();
+  while ((fertig & neueTasten) != neueTasten && millis() - t0 < 1500) {
+    int t = millis() - t0;
+    for (int i = 0; i < 10; i++) {
+      if (!(neueTasten & (1 << i)) || (fertig & (1 << i))) continue;
+      int tk = t - start[i];
+      if (tk < 0) continue;
+      if (tk < AUS && altTasten) {
+        float p = tk / (float)AUS;
+        tasteKopieren(i, altTasten, true);
+        zeichneGezoomt(i, 1.0f - 0.7f * p * p);
+      } else if (tk < AUS + EIN) {
+        float p = (tk - AUS) / (float)EIN;
+        tasteKopieren(i, (const uint8_t*)bildspeicher.getBuffer(), false);
+        zeichneGezoomt(i, 0.3f + 0.7f * federnd(p));
+      } else {
+        int x = KX[i % 5] - KEY / 2, y = KY[i / 5] - KEY / 2;
+        bereichZeigen(x, y, KEY, KEY);
+        fertig |= (1 << i);
+      }
+    }
+    delay(2);
+  }
+  bereichZeigen(0, 0, B, BAR_Y);           // sicherheitshalber alles auf Endstand
+}
+
 // ---------------------------------------------------------------- Animationen (GIFs)
 struct Anim { bool aktiv; int x, y, w, h, n, cur; uint8_t* daten; uint16_t* ms; uint32_t naechste; };
 const int ANIM_PLAETZE = 4;
@@ -277,7 +372,7 @@ void animStoppen(int s) {
 }
 
 void animsZeichnen() {
-  if (!appBild || schlaeft || testModus) return;
+  if (!appBild || schlaeft || testModus || sammeln) return;
   uint32_t jetzt = millis();
   for (int s = 0; s < ANIM_PLAETZE; s++) {
     Anim& a = anims[s];
@@ -303,7 +398,7 @@ void sendeHallo() {
   d["psram"] = ESP.getFreePsram();
   d["light"] = PIN_LICHT >= 0;
   JsonArray c = d["caps"].to<JsonArray>();
-  c.add("img"); c.add("anim"); c.add("rle"); c.add("touch"); c.add("sleep");
+  c.add("img"); c.add("anim"); c.add("rle"); c.add("touch"); c.add("sleep"); c.add("fx");
   sende(d);
 }
 
@@ -364,7 +459,14 @@ void bytesFertig() {
     uint8_t* px = (uint8_t*)heap_caps_malloc(pixel * 2, MALLOC_CAP_SPIRAM);
     if (px && dekodiere(rx.buf, rx.len, px, pixel, rx.rle)) {
       inBildspeicher(rx.x, rx.y, rx.w, rx.h, px);
-      if (appBild && !schlaeft && !testModus) lcd.pushImage(rx.x, rx.y, rx.w, rx.h, (const lgfx::swap565_t*)px);
+      bool zurueckhalten = false;
+      if (sammeln) {
+        for (int i = 0; i < 10; i++) {
+          int kx = KX[i % 5] - KEY / 2, ky = KY[i / 5] - KEY / 2;
+          if (rx.x < kx + KEY && rx.x + rx.w > kx && rx.y < ky + KEY && rx.y + rx.h > ky) { neueTasten |= (1 << i); zurueckhalten = true; }
+        }
+      }
+      if (appBild && !schlaeft && !testModus && !zurueckhalten) lcd.pushImage(rx.x, rx.y, rx.w, rx.h, (const lgfx::swap565_t*)px);
       ok = true;
     }
     if (px) free(px);
@@ -435,6 +537,13 @@ void nachrichtVerarbeiten(const String& zeile) {
     appBild = neu;
     if (!neu) for (int s = 0; s < ANIM_PLAETZE; s++) animStoppen(s);
     if (!schlaeft && !testModus) zeichneAlles();
+  } else if (!strcmp(t, "page")) {
+    // {"t":"page"}: neue Seite kommt, Tasten erst sammeln
+    if (appBild && effekte) sammelnStarten();
+  } else if (!strcmp(t, "show")) {
+    // {"t":"show","from":3,"style":0}: gesammelte Tasten mit Effekt zeigen
+    if (sammeln) uebergangZeigen(doc["from"] | -1, doc["style"] | 0);
+    JsonDocument a; a["t"] = "ok"; a["for"] = "show"; a["ok"] = true; sende(a);
   } else if (!strcmp(t, "img")) {
     bytesErwarten(doc, 'i');
     letzteBytes = millis();
@@ -465,6 +574,7 @@ void nachrichtVerarbeiten(const String& zeile) {
     if (doc["on"] | false) schlafen(); else aufwachen();
   } else if (!strcmp(t, "cfg")) {
     if (doc["sleep_s"].is<int>()) { schlafNachMs = (uint32_t)(doc["sleep_s"] | 0) * 1000; prefs.putUInt("sleep_s", schlafNachMs / 1000); }
+    if (doc["fx"].is<bool>()) { effekte = doc["fx"]; prefs.putBool("fx", effekte); }
     if (doc["bright"].is<int>()) {
       helligkeit = constrain(doc["bright"] | 100, 5, 100);
       prefs.putUChar("bright", helligkeit);
@@ -543,6 +653,7 @@ void setup() {
   lcd.setRotation(1);
   prefs.begin("deck", false);
   helligkeit = prefs.getUChar("bright", 100);
+  effekte = prefs.getBool("fx", true);
   schlafNachMs = prefs.getUInt("sleep_s", 0) * 1000;
   lichtSetzen(helligkeit);
 
@@ -550,6 +661,9 @@ void setup() {
   bildspeicher.setPsram(true);
   bildspeicher.createSprite(B, H);
   bildspeicher.fillScreen(TFT_BLACK);
+  quelle.setColorDepth(16); quelle.setPsram(false); quelle.createSprite(KEY, KEY);
+  quelle.setPivot(KEY / 2.0f - 0.5f, KEY / 2.0f - 0.5f);
+  rahmen.setColorDepth(16); rahmen.setPsram(false); rahmen.createSprite(KEY, KEY);
 
   standardLayout();
   String gespeichert = prefs.getString("layout", "");
@@ -639,6 +753,7 @@ void loop() {
     }
   }
 
+  if (sammeln && jetzt - sammelnSeit > 2000) uebergangZeigen(-1, 2);    // "show" kam nicht: trotzdem zeigen
   animsZeichnen();
   if (!appBild && jetzt - letzteUhr > 1000) { zeichneLeisteSelbst(false); letzteUhr = jetzt; }
   if (schlafNachMs && aktiv < 0 && !leisteUnten && jetzt - letzteBeruehrung > schlafNachMs) schlafen();

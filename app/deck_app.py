@@ -39,7 +39,7 @@ from deck import actions, config, icons, render, widgets
 from deck.engine import Engine, window_apps
 
 APP_NAME = "Deck 5x2"
-APP_VERSION = "0.3.0"
+APP_VERSION = "0.4.0"
 
 # ---------------------------------------------------------------- Logging
 log_file = config.config_dir() / "deck.log"

@@ -58,6 +58,8 @@ main{flex:1;display:grid;grid-template-columns:minmax(0,1fr) 410px;min-height:0}
 .key.sel,.zone.sel{box-shadow:0 0 0 2px var(--glass),0 0 0 4px var(--accent)}
 .key.hit::after{content:"";position:absolute;inset:0;border:3px solid #fff;border-radius:inherit}
 .key.drag{opacity:.4}
+.key.inh img{opacity:.38;filter:saturate(.6)}
+.key.inh::before{content:"";position:absolute;inset:3px;border:1.5px dashed rgba(255,255,255,.25);border-radius:inherit;z-index:1}
 .key.over{box-shadow:0 0 0 2px var(--glass),0 0 0 4px var(--warn)}
 .zone{position:absolute;top:62.8125%;height:34.375%;padding:0;border:0;background:#111827;border-radius:2.1%/9%;overflow:hidden}
 .zone img{object-fit:fill}
@@ -192,6 +194,10 @@ footer{display:flex;align-items:center;gap:12px;padding:10px 22px;border-top:1px
           <select id="sleepMin" style="width:auto"><option value="0">Aus</option><option value="2">nach 2 Min.</option><option value="5">nach 5 Min.</option><option value="10">nach 10 Min.</option><option value="30">nach 30 Min.</option><option value="60">nach 1 Std.</option></select></div>
         <div class="row" id="brightRow"><div style="flex:1">Helligkeit<small id="brightHint">Braucht den Umbau aus der Anleitung (LED an einen Pin)</small></div>
           <input type="range" id="bright" min="5" max="100" step="5" style="width:140px"></div>
+        <div class="row"><div>Animationen<small>Tasten drücken sich ein, neue Seiten kommen als Welle</small></div>
+          <label class="toggle"><input type="checkbox" id="fx"><span></span></label></div>
+        <div class="row"><div>Seitenwechsel</div>
+          <select id="fxStyle" style="width:auto"><option value="wave">Welle vom Knopf</option><option value="sweep">Von links nach rechts</option><option value="pop">Alle zugleich</option></select></div>
         <div class="row"><div>Deck jetzt schlafen legen</div><button class="btn" id="sleepNow">Schlafen</button></div>
       </div>
       <div class="card">
@@ -282,10 +288,21 @@ function renderPages(){
   $("editPage").onclick=()=>{sel={kind:"page"};renderDevice();renderSide()};
 }
 function addPage(name,withBack){
-  const p={id:newId(),name:name.slice(0,30),apps:[],keys:Array.from({length:10},blankKey)};
+  const p={id:newId(),name:name.slice(0,30),apps:[],inherit:false,keys:Array.from({length:10},blankKey)};
   if(withBack) Object.assign(p.keys[0],{text:"Zurück",icon:{kind:"glyph",value:"E72B"},action:{type:"page",value:"__back__"}});
   cfg.pages.push(p); return p;
 }
+// Ordner fuer eine Taste: gleiche Stelle wird zur Zurueck-Taste (sieht aus wie die Taste selbst), der Rest kommt von der Hauptseite
+function addFolder(key,idx){
+  const p=addPage((key&&key.text)||"Ordner",false); p.inherit=true;
+  const back=blankKey();
+  if(key){back.color=key.color;back.icon=clone(key.icon);back.icon_mode=key.icon_mode;back.text_color=key.text_color}
+  if(back.icon.kind==="none")back.icon={kind:"glyph",value:"E72B"};
+  back.text="Zurück"; back.action={type:"page",value:"__back__"};
+  p.keys[idx??0]=back; return p;
+}
+const isBlank=k=>!k.text.trim()&&k.icon.kind==="none"&&k.action.type==="none"&&k.hold.type==="none"&&k.live==="none"&&!k.toggle.enabled;
+const inherited=(p,i)=>p.inherit&&p!==cfg.pages[0]&&isBlank(p.keys[i]);
 function selectPage(id,goto){
   pageId=id; if(sel.kind==="page") sel={kind:"key",i:0};
   keyImgs={}; renderPages(); renderDevice(); refreshKeys(); renderSide();
@@ -299,7 +316,7 @@ function renderDevice(){
   const s=$("screen"); s.innerHTML="";
   page().keys.forEach((k,i)=>{
     const b=document.createElement("button");
-    b.className="key"+(sel.kind==="key"&&sel.i===i?" sel":"");
+    b.className="key"+(sel.kind==="key"&&sel.i===i?" sel":"")+(inherited(page(),i)?" inh":"");
     b.style.left=((KX[i%5]-KS/2)/480*100)+"%"; b.style.top=((KY[Math.floor(i/5)]-KS/2)/320*100)+"%";
     b.innerHTML=keyImgs[i]?`<img src="${keyImgs[i]}" alt="">`:"";
     b.setAttribute("aria-label",`Taste ${i+1}: ${k.text||"leer"}`);
@@ -348,9 +365,9 @@ const keyTimers={};
 function refreshKey(i,delay=120){
   clearTimeout(keyTimers[i]);
   keyTimers[i]=setTimeout(async()=>{
-    const k=page().keys[i]; const toggled=sel.kind==="key"&&sel.i===i&&previewToggled;
+    const p=page(), inh=inherited(p,i), k=inh?cfg.pages[0].keys[i]:p.keys[i]; const toggled=sel.kind==="key"&&sel.i===i&&previewToggled&&!inh;
     const url=await api().preview_key(k,toggled);
-    if(url){keyImgs[i]=url;const img=$("screen").querySelector(`.key[data-i="${i}"]`);if(img)img.innerHTML=`<img src="${url}" alt="">`}
+    if(url){keyImgs[i]=url;const el=$("screen").querySelector(`.key[data-i="${i}"]`);if(el){el.innerHTML=`<img src="${url}" alt="">`;el.classList.toggle("inh",inh)}}
   },delay);
 }
 function refreshKeys(){for(let i=0;i<10;i++)refreshKey(i,0)}
@@ -382,9 +399,10 @@ function renderKey(side){
   const i=sel.i,k=page().keys[i];
   const upd=(rerender)=>{refreshKey(i);changed();if(rerender)renderKey(side)};
   const col=swatches(k.color,COLORS,(c,re)=>{k.color=c;upd(re)},"kColors");
+  const inhNote=inherited(page(),i)?`<p class="help" style="background:var(--panel2);border:1px dashed var(--line);border-radius:9px;padding:8px 10px">Diese Taste ist leer und zeigt deshalb die Taste von der Hauptseite. Sobald du hier etwas einstellst, gilt es nur auf dieser Seite.</p>`:"";
   side.innerHTML=`
     <div class="ttl"><b>Taste ${i+1}</b><span>${esc(page().name)} · Reihe ${Math.floor(i/5)+1}, Spalte ${i%5+1}</span>
-      <div class="tools"><button class="iconbtn ico" id="kCopy" title="Taste kopieren">&#xE8C8;</button><button class="iconbtn ico" id="kPaste" title="Einfügen">&#xE77F;</button><button class="iconbtn ico" id="kClear" title="Leeren">&#xE74D;</button></div></div>
+      <div class="tools"><button class="iconbtn ico" id="kCopy" title="Taste kopieren">&#xE8C8;</button><button class="iconbtn ico" id="kPaste" title="Einfügen">&#xE77F;</button><button class="iconbtn ico" id="kClear" title="Leeren">&#xE74D;</button></div></div>${inhNote}
     <div class="sec"><div class="lab">Beschriftung <label class="inline" style="gap:6px;font-size:12px">anzeigen <span class="toggle" style="transform:scale(.8)"><input type="checkbox" id="kShow"${k.show_text?" checked":""}><span></span></span></label></div>
       <input type="text" id="kText" maxlength="40" placeholder="z. B. Spotify" value="${esc(k.text)}"></div>
     <div class="sec"><div class="lab">Farbe</div>${col.html}
@@ -484,9 +502,10 @@ function actionEditor(box,a,onChange,onRerender,ctx={}){
   if(t==="media"){val.innerHTML=`<select>${MEDIA.map(([v,l])=>`<option value="${v}"${a.value===v?" selected":""}>${l}</option>`).join("")}</select>`}
   else if(t==="system"){val.innerHTML=`<select>${sysOptions(a.value)}</select>`}
   else if(t==="page"){val.innerHTML=`<div class="inline"><select>${pageOptions(a.value)}</select><button class="btn" data-newf>+ Ordner</button></div>
-      <p class="help">„+ Ordner“ legt eine neue Seite mit Zurück-Taste an.</p>`;
-    val.querySelector("[data-newf]").onclick=()=>{const nm=(ctx.key&&ctx.key.text)||"Ordner";const p=addPage(nm,true);a.value=p.id;
-      if(ctx.key&&ctx.key.icon.kind==="none")ctx.key.icon={kind:"glyph",value:"E8B7"};renderPages();onRerender();setMsg(`Ordner „${p.name}“ angelegt – oben bei den Seiten`)}}
+      <p class="help">„+ Ordner“ legt eine neue Seite an: an dieser Stelle eine Zurück-Taste, leere Tasten zeigen weiter die Hauptseite.</p>`;
+    val.querySelector("[data-newf]").onclick=()=>{const p=addFolder(ctx.key,sel.kind==="key"?sel.i:0);a.value=p.id;
+      if(ctx.key&&ctx.key.icon.kind==="none")ctx.key.icon={kind:"glyph",value:"E8B7"};renderPages();onRerender();
+      setMsg(`Ordner „${p.name}“ angelegt – oben bei den Seiten. Leere Tasten zeigen dort die Hauptseite.`)}}
   else if(t==="text"){val.innerHTML=`<textarea placeholder="Text, der getippt wird">${esc(a.value)}</textarea><p class="help">${help}</p>`}
   else if(t==="multi"){multiEditor(val,a,onChange,onRerender);return}
   else{
@@ -596,6 +615,8 @@ async function renderPageEditor(side){
   side.innerHTML=`
     <div class="ttl"><b>Seite</b><span>${idx===0?"Hauptseite (auch ohne App auf dem Deck)":"Seite "+(idx+1)+" von "+cfg.pages.length}</span></div>
     <label class="f">Name<input type="text" id="pName" maxlength="30" value="${esc(p.name)}"></label>
+    ${idx>0?`<div class="row" style="padding:2px 0"><div>Leere Tasten von der Hauptseite zeigen<small>Z. B. nur die obere Reihe ersetzen, unten bleibt alles wie gewohnt</small></div>
+      <label class="toggle"><input type="checkbox" id="pInh"${p.inherit?" checked":""}><span></span></label></div>`:""}
     <div class="sec"><div class="lab">Automatisch zeigen, wenn dieses Programm im Vordergrund ist</div>
       <div class="chips" id="pApps">${p.apps.map((a,k)=>`<span class="chip">${esc(a)}<button data-k="${k}" aria-label="Entfernen">×</button></span>`).join("")||'<span class="help">Noch kein Programm</span>'}</div>
       <div class="inline"><select id="pAppSel"><option value="">Laufendes Programm wählen …</option></select><button class="btn" id="pAppAdd">Hinzufügen</button></div>
@@ -605,6 +626,7 @@ async function renderPageEditor(side){
       <button class="btn" id="pDup">Duplizieren</button></div>
     <button class="btn danger" id="pDel"${idx===0?" disabled":""}>Seite löschen</button>`;
   $("pName").oninput=e=>{p.name=e.target.value||"Seite";renderPages();changed()};
+  if($("pInh")) $("pInh").onchange=e=>{p.inherit=e.target.checked;renderDevice();refreshKeys();changed()};
   $("pApps").querySelectorAll("button").forEach(b=>b.onclick=()=>{p.apps.splice(+b.dataset.k,1);renderPages();changed();renderPageEditor(side)});
   $("pAppAdd").onclick=()=>{const v=$("pAppSel").value.trim().toLowerCase();if(v&&!p.apps.includes(v)){p.apps.push(v);renderPages();changed();renderPageEditor(side)}};
   const mv=d=>{cfg.pages.splice(idx,1);cfg.pages.splice(idx+d,0,p);renderPages();changed();renderPageEditor(side)};
@@ -664,7 +686,8 @@ function drawTouches(pts){
 // ---------------------------------------------------------------- Allgemeine Einstellungen
 function bindSettings(){
   const bindT=(id,key)=>{$(id).checked=!!cfg[key];$(id).onchange=e=>{cfg[key]=e.target.checked;changed({now:true})}};
-  bindT("timeSync","time_sync");bindT("autostart","autostart");bindT("autoProfiles","auto_profiles");bindT("swipePages","swipe_pages");
+  bindT("timeSync","time_sync");bindT("autostart","autostart");bindT("autoProfiles","auto_profiles");bindT("swipePages","swipe_pages");bindT("fx","fx");
+  $("fxStyle").value=cfg.fx_style||"wave"; $("fxStyle").onchange=e=>{cfg.fx_style=e.target.value;changed({now:true})};
   $("sleepMin").value=String(cfg.sleep_min); if($("sleepMin").value!==String(cfg.sleep_min)){$("sleepMin").insertAdjacentHTML("beforeend",`<option value="${cfg.sleep_min}">nach ${cfg.sleep_min} Min.</option>`);$("sleepMin").value=String(cfg.sleep_min)}
   $("sleepMin").onchange=e=>{cfg.sleep_min=+e.target.value;changed({now:true})};
   $("bright").value=cfg.brightness; $("bright").oninput=e=>{cfg.brightness=+e.target.value;changed()};
