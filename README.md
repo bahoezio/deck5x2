@@ -72,6 +72,12 @@ Ohne Deck testen: `python tools/ui_dev_server.py` startet die Oberfläche im Bro
 
 Druckdateien und die interaktive Bauanleitung liegen in `hardware/`.
 
+**v0.3** (`deck_v03_2_gehaeuse.3mf`): 30° Neigung, Oberschale wie v0.2, neue Unterschale.
+Der ESP liegt hinten auf einer 18 mm breiten Auflage (mit 1 mm Klebepad), die Dupont-Stecker hängen links und rechts daneben.
+Unter der Stiftleiste des Displays ist keine Auflage, die Stecker haben dort ca. 7 mm Platz nach unten.
+Schrauben: 4 × M3 × 8 von unten bzw. hinten durch die Unterschale und die Display-Platine in die Gewindeeinsätze der Oberschale.
+Die Unterschale wird aus `hardware/src/unterschale_v03.py` erzeugt (Parameter oben in der Datei).
+
 ## Lizenz
 
 MIT, siehe [LICENSE](LICENSE).
